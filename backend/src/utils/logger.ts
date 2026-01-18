@@ -46,4 +46,37 @@ if (process.env.NODE_ENV !== 'test') {
   );
 }
 
+// Helper function to log API requests
+export const logApiRequest = (
+  req: any,
+  res: any,
+  responseTime: number,
+): void => {
+  logger.info('API Request', {
+    method: req.method,
+    url: req.originalUrl,
+    statusCode: res.statusCode,
+    responseTime: `${responseTime}ms`,
+    userId: req.user?.id,
+    businessId: req.user?.business_id,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+};
+
+// Helper function to log performance metrics
+export const logPerformanceMetric = (
+  metric: string,
+  value: number,
+  unit: string,
+  metadata?: Record<string, any>,
+): void => {
+  logger.warn('Performance Metric', {
+    metric,
+    value,
+    unit,
+    ...metadata,
+  });
+};
+
 export default logger;

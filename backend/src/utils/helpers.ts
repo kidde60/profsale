@@ -121,13 +121,21 @@ export const createApiResponse = <T>(
   data?: T,
   errors?: any[],
 ): ApiResponse<T> => {
-  return {
+  const response: ApiResponse<T> = {
     success,
     message,
-    data,
-    errors,
     timestamp: new Date().toISOString(),
   };
+
+  if (data !== undefined) {
+    response.data = data;
+  }
+
+  if (errors !== undefined) {
+    response.errors = errors;
+  }
+
+  return response;
 };
 
 /**

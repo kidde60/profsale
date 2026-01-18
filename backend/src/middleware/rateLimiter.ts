@@ -1,7 +1,18 @@
 // middleware/rateLimiting.ts
 import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import logger from '../utils/logger';
+
+// Extend Express Request interface for rate limit
+declare module 'express' {
+  interface Request {
+    rateLimit?: {
+      limit: number;
+      remaining: number;
+      resetTime: Date;
+    };
+  }
+}
 
 // Rate limit store (in production, use Redis)
 interface RateLimitStore {
@@ -18,10 +29,7 @@ const createMemoryStore = () => {
   return {
     incr: (
       key: string,
-      callback: (
-        err: any,
-        result?: { totalHits: number; resetTime?: Date },
-      ) => void,
+      callback: (err: any, totalHits: number, resetTime: Date) => void,
     ) => {
       const now = Date.now();
       const windowMs = 15 * 60 * 1000; // 15 minutes
@@ -35,10 +43,11 @@ const createMemoryStore = () => {
         memoryStore[key].count++;
       }
 
-      callback(null, {
-        totalHits: memoryStore[key].count,
-        resetTime: new Date(memoryStore[key].resetTime),
-      });
+      callback(
+        null,
+        memoryStore[key].count,
+        new Date(memoryStore[key].resetTime),
+      );
     },
 
     decrement: (key: string) => {
@@ -55,8 +64,10 @@ const createMemoryStore = () => {
 
 // Rate limit response handler
 const rateLimitHandler = (req: Request, res: Response) => {
-  const retryAfter =
-    Math.round(req.rateLimit?.resetTime?.getTime() - Date.now()) / 1000 || 900;
+  const resetTime = req.rateLimit?.resetTime?.getTime();
+  const retryAfter = resetTime
+    ? Math.round((resetTime - Date.now()) / 1000)
+    : 900;
 
   logger.warn('Rate limit exceeded:', {
     ip: req.ip,
@@ -194,7 +205,7 @@ export const endpointRateLimits = {
 export const subscriptionBasedRateLimit = (
   req: Request,
   res: Response,
-  next: Function,
+  next: NextFunction,
 ) => {
   const user = (req as any).user;
 
@@ -230,7 +241,7 @@ export const subscriptionBasedRateLimit = (
 export const adminRateLimitBypass = (
   req: Request,
   res: Response,
-  next: Function,
+  next: NextFunction,
 ) => {
   const user = (req as any).user;
 
@@ -295,8 +306,12 @@ setInterval(
 // IP whitelist for trusted sources
 const trustedIPs = process.env.TRUSTED_IPS?.split(',') || [];
 
-export const ipWhitelist = (req: Request, res: Response, next: Function) => {
-  if (trustedIPs.includes(req.ip)) {
+export const ipWhitelist = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  if (req.ip && trustedIPs.includes(req.ip)) {
     logger.info(`Whitelisted IP access: ${req.ip}`);
     return next();
   }

@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { AuthUser } from '../middleware/auth';
 
 // Base interfaces
 export interface BaseEntity {
@@ -18,18 +19,6 @@ export interface User extends BaseEntity {
   is_verified: boolean;
   is_active: boolean;
   last_login?: Date;
-}
-
-export interface AuthUser {
-  id: number;
-  phone: string;
-  email?: string;
-  first_name: string;
-  last_name: string;
-  business_id: number;
-  business_name: string;
-  role: UserRole;
-  permissions?: UserPermissions;
 }
 
 export interface UserPermissions {

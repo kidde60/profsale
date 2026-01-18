@@ -1,12 +1,12 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 // Simple JWT utility to avoid complex overload issues
 export const signToken = (
   payload: object,
   secret: string,
-  expiresIn: string = '24h',
+  expiresIn: string | number = '24h',
 ): string => {
-  return jwt.sign(payload, secret, { expiresIn });
+  return jwt.sign(payload, secret, { expiresIn } as SignOptions);
 };
 
 export const verifyToken = (token: string, secret: string): any => {

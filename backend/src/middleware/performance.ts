@@ -15,8 +15,8 @@ export const performanceMonitor = (
   res.set('X-Response-Time-Start', startTime.toString());
 
   // Override res.end to capture response time
-  const originalEnd = res.end;
-  res.end = function (this: Response, ...args: any[]) {
+  const originalEnd = res.end.bind(res);
+  res.end = function (this: Response, ...args: any[]): Response {
     const endTime = Date.now();
     const responseTime = endTime - startTime;
     const endMemory = process.memoryUsage();
@@ -57,7 +57,7 @@ export const performanceMonitor = (
     }
 
     // Call original end method
-    originalEnd.apply(this, args);
+    return originalEnd(...args) as Response;
   };
 
   next();
@@ -101,7 +101,7 @@ export const trackDatabaseQuery = (
 
 // Memory usage monitoring
 let lastMemoryCheck = Date.now();
-let memoryCheckInterval: NodeJS.Timeout;
+let memoryCheckInterval: ReturnType<typeof setInterval>;
 
 const checkMemoryUsage = (): void => {
   const now = Date.now();

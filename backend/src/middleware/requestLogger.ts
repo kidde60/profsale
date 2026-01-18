@@ -70,18 +70,18 @@ const productionFormat = [
 const jsonFormat = (tokens: any, req: Request, res: Response) => {
   const logData = {
     timestamp: new Date().toISOString(),
-    method: tokens.method(req, res),
-    url: tokens.url(req, res),
-    status: parseInt(tokens.status(req, res)) || 0,
-    responseTime: parseFloat(tokens['response-time'](req, res)) || 0,
-    responseSize: tokens['response-size'](req, res),
+    method: tokens.method?.(req, res),
+    url: tokens.url?.(req, res),
+    status: parseInt(tokens.status?.(req, res) || '0') || 0,
+    responseTime: parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
+    responseSize: tokens['response-size']?.(req, res),
     userAgent: req.get('User-Agent'),
-    ip: tokens['real-ip'](req, res),
-    userId: tokens['user-id'](req, res),
-    businessId: tokens['business-id'](req, res),
-    referrer: tokens.referrer(req, res),
-    httpVersion: tokens['http-version'](req, res),
-    requestId: tokens['request-id'](req, res),
+    ip: tokens['real-ip']?.(req, res),
+    userId: tokens['user-id']?.(req, res),
+    businessId: tokens['business-id']?.(req, res),
+    referrer: tokens.referrer?.(req, res),
+    httpVersion: tokens['http-version']?.(req, res),
+    requestId: tokens['request-id']?.(req, res),
   };
 
   return JSON.stringify(logData);
@@ -149,17 +149,17 @@ export const securityLogger = morgan(
   (tokens, req: Request, res: Response) => {
     const logData = {
       timestamp: new Date().toISOString(),
-      method: tokens.method(req, res),
-      url: tokens.url(req, res),
-      status: parseInt(tokens.status(req, res)) || 0,
-      ip: tokens['real-ip'](req, res),
+      method: tokens.method?.(req, res),
+      url: tokens.url?.(req, res),
+      status: parseInt(tokens.status?.(req, res) || '0') || 0,
+      ip: tokens['real-ip']?.(req, res),
       userAgent: req.get('User-Agent'),
       authorization: req.get('Authorization') ? 'Bearer [HIDDEN]' : 'none',
       contentType: req.get('Content-Type'),
       contentLength: req.get('Content-Length'),
-      referer: tokens.referrer(req, res),
-      userId: tokens['user-id'](req, res),
-      businessId: tokens['business-id'](req, res),
+      referer: tokens.referrer?.(req, res),
+      userId: tokens['user-id']?.(req, res),
+      businessId: tokens['business-id']?.(req, res),
       suspicious: false,
     };
 
@@ -210,11 +210,11 @@ export const apiAccessLogger = morgan(
 
     const logData = {
       timestamp: new Date().toISOString(),
-      endpoint: `${tokens.method(req, res)} ${req.route?.path || req.url}`,
-      status: parseInt(tokens.status(req, res)) || 0,
-      responseTime: parseFloat(tokens['response-time'](req, res)) || 0,
-      userId: tokens['user-id'](req, res),
-      businessId: tokens['business-id'](req, res),
+      endpoint: `${tokens.method?.(req, res)} ${req.route?.path || req.url}`,
+      status: parseInt(tokens.status?.(req, res) || '0') || 0,
+      responseTime: parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
+      userId: tokens['user-id']?.(req, res),
+      businessId: tokens['business-id']?.(req, res),
       apiVersion: req.get('api-version') || 'v1',
     };
 
@@ -246,7 +246,7 @@ export const errorRequestLogger = morgan(jsonFormat, {
         }
       } catch (error) {
         logger.error('Request logging error', {
-          error: error.message,
+          error: error instanceof Error ? error.message : 'Unknown error',
           message,
         });
       }
@@ -262,13 +262,14 @@ export const createRouteLogger = (routeName: string) => {
       const logData = {
         timestamp: new Date().toISOString(),
         route: routeName,
-        method: tokens.method(req, res),
-        url: tokens.url(req, res),
-        status: parseInt(tokens.status(req, res)) || 0,
-        responseTime: parseFloat(tokens['response-time'](req, res)) || 0,
-        userId: tokens['user-id'](req, res),
-        businessId: tokens['business-id'](req, res),
-        ip: tokens['real-ip'](req, res),
+        method: tokens.method?.(req, res),
+        url: tokens.url?.(req, res),
+        status: parseInt(tokens.status?.(req, res) || '0') || 0,
+        responseTime:
+          parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
+        userId: tokens['user-id']?.(req, res),
+        businessId: tokens['business-id']?.(req, res),
+        ip: tokens['real-ip']?.(req, res),
       };
 
       return JSON.stringify(logData);
@@ -315,14 +316,14 @@ export const uploadLogger = morgan(
   (tokens, req: Request, res: Response) => {
     const logData = {
       timestamp: new Date().toISOString(),
-      method: tokens.method(req, res),
-      url: tokens.url(req, res),
-      status: parseInt(tokens.status(req, res)) || 0,
+      method: tokens.method?.(req, res),
+      url: tokens.url?.(req, res),
+      status: parseInt(tokens.status?.(req, res) || '0') || 0,
       contentLength: req.get('Content-Length'),
       contentType: req.get('Content-Type'),
-      userId: tokens['user-id'](req, res),
-      businessId: tokens['business-id'](req, res),
-      ip: tokens['real-ip'](req, res),
+      userId: tokens['user-id']?.(req, res),
+      businessId: tokens['business-id']?.(req, res),
+      ip: tokens['real-ip']?.(req, res),
       files: (req as any).files ? Object.keys((req as any).files).length : 0,
     };
 
@@ -406,13 +407,14 @@ export const structuredRequestLogger = (customFields: any = {}) => {
     (tokens, req: Request, res: Response) => {
       const baseLogData = {
         timestamp: new Date().toISOString(),
-        method: tokens.method(req, res),
-        url: tokens.url(req, res),
-        status: parseInt(tokens.status(req, res)) || 0,
-        responseTime: parseFloat(tokens['response-time'](req, res)) || 0,
-        ip: tokens['real-ip'](req, res),
-        userId: tokens['user-id'](req, res),
-        businessId: tokens['business-id'](req, res),
+        method: tokens.method?.(req, res),
+        url: tokens.url?.(req, res),
+        status: parseInt(tokens.status?.(req, res) || '0') || 0,
+        responseTime:
+          parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
+        ip: tokens['real-ip']?.(req, res),
+        userId: tokens['user-id']?.(req, res),
+        businessId: tokens['business-id']?.(req, res),
         userAgent: req.get('User-Agent'),
         ...customFields,
       };

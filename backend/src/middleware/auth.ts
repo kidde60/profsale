@@ -11,7 +11,9 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   businessId: number;
+  business_id: number;
   businessName: string;
+  business_name: string;
   role: 'owner' | 'manager' | 'employee';
   permissions: {
     canViewReports: boolean;
@@ -138,7 +140,9 @@ export const authenticateToken = async (
         firstName,
         lastName,
         businessId: staffMember.business_id,
+        business_id: staffMember.business_id,
         businessName: staffMember.business_name,
+        business_name: staffMember.business_name,
         role: staffMember.role,
         permissions: permissionsObj,
       };
@@ -178,7 +182,9 @@ export const authenticateToken = async (
       firstName: user.first_name,
       lastName: user.last_name,
       businessId: user.business_id,
+      business_id: user.business_id,
       businessName: user.business_name,
+      business_name: user.business_name,
       role: user.role,
       permissions: user.permissions
         ? JSON.parse(user.permissions)
