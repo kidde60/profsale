@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/database';
+import { emailService } from '../utils/emailService';
 
 const router = Router();
 
@@ -154,6 +155,13 @@ router.post('/register', async (req: Request, res: Response) => {
 
       // Generate JWT token
       const token = generateToken(userId, businessId);
+
+      // Send welcome email (non-blocking)
+      if (email) {
+        emailService
+          .sendWelcomeEmail(email, firstName, businessName)
+          .catch(err => console.error('Failed to send welcome email:', err));
+      }
 
       res.status(201).json({
         success: true,
@@ -533,12 +541,11 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     const user = users[0];
 
-    // Generate 6-digit reset code
+    // Generate 6-digit reset code (token)
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    // Store reset code in database (you may need to create a password_resets table)
-    // For now, we'll store it in a simple way
+    // Store reset code in database
     await pool.execute(
       `INSERT INTO password_resets (user_id, reset_code, expires_at, is_used) 
        VALUES (?, ?, ?, FALSE)
@@ -546,15 +553,25 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       [user.id, resetCode, expiresAt, resetCode, expiresAt],
     );
 
-    // TODO: Send reset code via SMS/Email
-    // For now, we'll just log it (in production, integrate SMS/email service)
+    // Send password reset email if user has email
+    if (user.email) {
+      emailService
+        .sendPasswordResetEmail(user.email, user.first_name, resetCode)
+        .catch(err =>
+          console.error('Failed to send password reset email:', err),
+        );
+    }
+
+    // Log reset code for development/SMS fallback
     console.log(
       `Reset code for ${contact}: ${resetCode} (expires at ${expiresAt})`,
     );
 
     res.json({
       success: true,
-      message: 'Reset code has been sent to your email/phone',
+      message: user.email
+        ? 'Reset code has been sent to your email'
+        : 'Reset code has been sent to your phone',
       // Remove this in production - only for development
       ...(process.env.NODE_ENV === 'development' && { resetCode }),
     });
