@@ -11,13 +11,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Button, Input, Loading } from '../components';
-import { salesService } from '../services/salesService';
+import { offlineSalesService } from '../services/offlineSalesService';
 import { customerService } from '../services/customerService';
 import { Customer } from '../types';
 import { formatCurrency } from '../utils/helpers';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../context/AuthContext';
+import { useOffline } from '../context/OfflineContext';
 
 type CheckoutScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -33,6 +34,7 @@ interface Props {
 
 const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   const { user } = useAuth();
+  const { isOfflineMode, refreshSyncStatus } = useOffline();
   const { cart, total } = route.params;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -127,7 +129,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
       setProcessing(true);
       const saleData = {
         businessId: user?.businessId || 1,
-        customerId: selectedCustomer?.id || null,
+        customer_id: selectedCustomer?.id,
         customerName:
           customerType === 'existing'
             ? selectedCustomer?.name
@@ -143,26 +145,37 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         total: calculateTotal(),
       };
 
-      await salesService.createSale(saleData);
+      const result = await offlineSalesService.createSale(saleData);
 
-      Alert.alert('Success', 'Sale completed successfully', [
-        {
-          text: 'OK',
-          onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [
-                {
-                  name: 'MainTabs',
-                  state: {
-                    routes: [{ name: 'POS', params: { clearCart: true } }],
+      if (result.success) {
+        // Refresh sync status to update pending count
+        await refreshSyncStatus();
+
+        const successMessage = result.isOffline
+          ? 'Sale saved offline. Will sync when connected.'
+          : 'Sale completed successfully';
+
+        Alert.alert('Success', successMessage, [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'MainTabs',
+                    state: {
+                      routes: [{ name: 'POS', params: { clearCart: true } }],
+                    },
                   },
-                },
-              ],
-            });
+                ],
+              });
+            },
           },
-        },
-      ]);
+        ]);
+      } else {
+        Alert.alert('Error', result.message || 'Failed to complete sale');
+      }
     } catch (error) {
       console.error('Sale error:', error);
       Alert.alert('Error', 'Failed to complete sale');

@@ -9,6 +9,7 @@ import React from 'react';
 import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
+import { OfflineProvider } from './src/context/OfflineContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { COLORS } from './src/constants/theme';
 
@@ -22,7 +23,9 @@ function App() {
         backgroundColor={COLORS.primary}
       />
       <AuthProvider>
-        <AppNavigator />
+        <OfflineProvider>
+          <AppNavigator />
+        </OfflineProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

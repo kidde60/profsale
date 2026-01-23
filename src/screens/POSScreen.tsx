@@ -15,11 +15,12 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Card, Button, Input, Loading } from '../components';
-import { productService } from '../services/productService';
+import { offlineProductService } from '../services/offlineProductService';
 import { Product, Customer } from '../types';
 import { formatCurrency } from '../utils/helpers';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
+import { useOffline } from '../context/OfflineContext';
 
 interface CartItem {
   product: Product;
@@ -33,6 +34,7 @@ type POSScreenRouteProp = RouteProp<{ POS: { clearCart?: boolean } }, 'POS'>;
 
 const POSScreen: React.FC = () => {
   const { user } = useAuth();
+  const { isOfflineMode, pendingSalesCount } = useOffline();
   const navigation = useNavigation<POSScreenNavigationProp>();
   const route = useRoute<POSScreenRouteProp>();
   const [products, setProducts] = useState<Product[]>([]);
@@ -44,6 +46,7 @@ const POSScreen: React.FC = () => {
   const [showCartModal, setShowCartModal] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
   const [tempPrice, setTempPrice] = useState('');
+  const [isOfflineData, setIsOfflineData] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -74,11 +77,9 @@ const POSScreen: React.FC = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await productService.getProducts({});
-      const productsData = Array.isArray(response.data)
-        ? response.data
-        : (response.data as any)?.products || [];
-      setProducts(productsData);
+      const response = await offlineProductService.getProducts({});
+      setProducts(response.data);
+      setIsOfflineData(response.isOffline);
     } catch (error) {
       console.error('Error fetching products:', error);
       Alert.alert('Error', 'Failed to load products');
@@ -341,6 +342,15 @@ const POSScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      {/* Offline Banner */}
+      {(isOfflineMode || isOfflineData) && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            {isOfflineMode ? '📡 Offline Mode' : '📦 Using Cached Data'}
+            {pendingSalesCount > 0 ? ` • ${pendingSalesCount} pending` : ''}
+          </Text>
+        </View>
+      )}
       <View style={styles.container}>
         {/* Search Bar */}
         <View style={styles.searchSection}>
@@ -440,6 +450,17 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  offlineBanner: {
+    backgroundColor: COLORS.warning,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+  },
+  offlineBannerText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
   },
   container: {
     flex: 1,

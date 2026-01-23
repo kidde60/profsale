@@ -46,10 +46,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     try {
       await login({ login: emailOrPhone, password });
     } catch (error: any) {
-      Alert.alert(
-        'Login Failed',
-        error.response?.data?.message || 'Invalid credentials',
-      );
+      const message =
+        error.message || error.response?.data?.message || 'Invalid credentials';
+      Alert.alert('Login Failed', message);
     } finally {
       setLoading(false);
     }
