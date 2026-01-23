@@ -1,18 +1,14 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 
-// Global logout handler for 401 errors
 let globalLogoutHandler: null | (() => void) = null;
 export function setGlobalLogoutHandler(handler: () => void) {
   globalLogoutHandler = handler;
 }
 
-// API Configuration
-const API_URL = __DEV__
-  ? 'http://192.168.100.75:5000/api'
-  : 'https://your-production-api.com/api';
+const API_URL = 'https://profsale.dangotechconcepts.com/api';
 
-// Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 30000,
@@ -21,7 +17,6 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add auth token
 apiClient.interceptors.request.use(
   async config => {
     const token = await AsyncStorage.getItem('authToken');
@@ -30,21 +25,28 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  error => {
-    return Promise.reject(error);
-  },
+  error => Promise.reject(error),
 );
 
-// Response interceptor for error handling
 apiClient.interceptors.response.use(
   response => response,
   async (error: AxiosError) => {
+    if (!error.response) {
+      console.log('Network error:', error.message);
+      Alert.alert(
+        'Network Error',
+        'Please check your internet connection and try again.',
+      );
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401) {
-      // Token expired or invalid - logout user globally
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('user');
       if (globalLogoutHandler) globalLogoutHandler();
     }
+
+    console.log('API error:', error.response?.status, error.response?.data);
     return Promise.reject(error);
   },
 );
