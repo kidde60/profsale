@@ -25,6 +25,7 @@ import expensesRoutes from './routes/expenses.routes';
 import reportsRoutes from './routes/reports.routes';
 import staffRoutes from './routes/staff.routes';
 import subscriptionRoutes from './routes/subscription.routes';
+import { performHealthCheck, simpleHealthCheck, readinessCheck, livenessCheck } from './utils/healthCheck';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -96,18 +97,31 @@ app.use((req, res, next) => {
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Health check endpoint
+// Health check endpoints
 app.get('/health', async (req, res) => {
-  const healthStatus = {
-    success: true,
-    message: 'Prof Sale API is running',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-    environment: env,
-    uptime: Math.floor(process.uptime()),
-  };
+  const health = await performHealthCheck();
+  const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+  res.status(statusCode).json(health);
+});
 
-  res.status(200).json(healthStatus);
+// Simple health check (for load balancers)
+app.get('/health/simple', async (req, res) => {
+  const health = await simpleHealthCheck();
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(health);
+});
+
+// Readiness check (Kubernetes style)
+app.get('/health/ready', async (req, res) => {
+  const readiness = await readinessCheck();
+  const statusCode = readiness.ready ? 200 : 503;
+  res.status(statusCode).json(readiness);
+});
+
+// Liveness check (Kubernetes style)
+app.get('/health/live', async (req, res) => {
+  const liveness = await livenessCheck();
+  res.status(200).json(liveness);
 });
 
 // Root endpoint
