@@ -1,7 +1,7 @@
 // routes/sync.routes.ts - Offline-first synchronization routes
 import { Router } from 'express';
 import { syncData, getSyncStatus, resolveConflict } from '../controllers/sync.controller';
-import { authenticate } from '../middleware/auth';
+import { authenticateToken as authenticate } from '../middleware/auth';
 
 const router = Router();
 

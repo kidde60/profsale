@@ -71,9 +71,9 @@ export const generalRateLimit = async () => {
   
   const store = client
     ? new RedisStore({
-        client,
+        client: client as any,
         prefix: 'rate_limit:general:',
-      })
+      } as any)
     : undefined;
 
   return rateLimit({
@@ -82,10 +82,10 @@ export const generalRateLimit = async () => {
     message: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
-    store,
-    skip: (req) => req.path === '/health' || req.path.startsWith('/health/'),
-    keyGenerator: (req) => (req as any).user?.id?.toString() || req.ip,
-  });
+    store: store as any,
+    skip: (req: any) => req.path === '/health' || req.path.startsWith('/health/'),
+    keyGenerator: (req: any) => (req as any).user?.id?.toString() || req.ip,
+  } as any);
 };
 
 /**
@@ -96,9 +96,9 @@ export const authRateLimit = async () => {
   
   const store = client
     ? new RedisStore({
-        client,
+        client: client as any,
         prefix: 'rate_limit:auth:',
-      })
+      } as any)
     : undefined;
 
   return rateLimit({
@@ -107,13 +107,13 @@ export const authRateLimit = async () => {
     message: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
-    store,
+    store: store as any,
     skipSuccessfulRequests: true,
-    keyGenerator: (req) => {
+    keyGenerator: (req: any) => {
       const login = req.body?.login || req.body?.phone || req.body?.email;
       return `auth:${login}:${req.ip}`;
     },
-  });
+  } as any);
 };
 
 /**
@@ -124,9 +124,9 @@ export const uploadRateLimit = async () => {
   
   const store = client
     ? new RedisStore({
-        client,
+        client: client as any,
         prefix: 'rate_limit:upload:',
-      })
+      } as any)
     : undefined;
 
   return rateLimit({
@@ -135,9 +135,9 @@ export const uploadRateLimit = async () => {
     message: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
-    store,
-    keyGenerator: (req) => `upload:${(req as any).user?.id || req.ip}`,
-  });
+    store: store as any,
+    keyGenerator: (req: any) => `upload:${(req as any).user?.id || req.ip}`,
+  } as any);
 };
 
 /**
@@ -148,9 +148,9 @@ export const salesRateLimit = async () => {
   
   const store = client
     ? new RedisStore({
-        client,
+        client: client as any,
         prefix: 'rate_limit:sales:',
-      })
+      } as any)
     : undefined;
 
   return rateLimit({
@@ -159,9 +159,9 @@ export const salesRateLimit = async () => {
     message: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
-    store,
-    keyGenerator: (req) => `sales:${(req as any).user?.id}`,
-  });
+    store: store as any,
+    keyGenerator: (req: any) => `sales:${(req as any).user?.id}`,
+  } as any);
 };
 
 /**
@@ -172,9 +172,9 @@ export const passwordResetRateLimit = async () => {
   
   const store = client
     ? new RedisStore({
-        client,
+        client: client as any,
         prefix: 'rate_limit:reset:',
-      })
+      } as any)
     : undefined;
 
   return rateLimit({
@@ -183,9 +183,9 @@ export const passwordResetRateLimit = async () => {
     message: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
-    store,
-    keyGenerator: (req) => `reset:${req.ip}`,
-  });
+    store: store as any,
+    keyGenerator: (req: any) => `reset:${req.ip}`,
+  } as any);
 };
 
 /**
@@ -210,9 +210,9 @@ export const subscriptionBasedRateLimit = async (req: Request, res: Response, ne
   const client = await initializeRedis();
   const store = client
     ? new RedisStore({
-        client,
+        client: client as any,
         prefix: `rate_limit:subscription:${subscriptionPlan}:`,
-      })
+      } as any)
     : undefined;
 
   const limiter = rateLimit({
@@ -221,9 +221,9 @@ export const subscriptionBasedRateLimit = async (req: Request, res: Response, ne
     message: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
-    store,
-    keyGenerator: (req) => `subscription:${user.id}`,
-  });
+    store: store as any,
+    keyGenerator: (req: any) => `subscription:${user.id}`,
+  } as any);
 
   return limiter(req, res, next);
 };
@@ -264,7 +264,8 @@ export async function getRateLimitStats() {
     };
 
     keys.forEach((key: string) => {
-      const prefix = key.split(':')[1];
+      const parts = key.split(':');
+      const prefix = parts[1] || 'unknown';
       stats.keysByPrefix[prefix] = (stats.keysByPrefix[prefix] || 0) + 1;
     });
 

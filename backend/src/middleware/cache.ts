@@ -121,7 +121,7 @@ export const cacheResponse = (options: CacheOptions = {}) => {
           // Cache asynchronously to not block response
           client
             .setEx(cacheKey, ttl, JSON.stringify(cacheData))
-            .catch(err => {
+            .catch((err: Error) => {
               logger.error('Failed to cache response', { error: err, key: cacheKey });
             });
         }

@@ -18,7 +18,7 @@ export interface SyncData {
 /**
  * Sync client data with server
  */
-export async function syncData(req: Request, res: Response, next: NextFunction) {
+export async function syncData(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const syncData: SyncData = req.body;
     const userId = (req as any).user.id;
@@ -33,11 +33,12 @@ export async function syncData(req: Request, res: Response, next: NextFunction) 
 
     // Validate sync data
     if (!syncData.deviceId || !syncData.changes) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Invalid sync data',
         timestamp: new Date().toISOString(),
       });
+      return;
     }
 
     // Process changes in transaction
@@ -366,17 +367,18 @@ async function fetchServerChanges(businessId: number, lastSyncTimestamp: string)
 /**
  * Get sync status for a device
  */
-export async function getSyncStatus(req: Request, res: Response, next: NextFunction) {
+export async function getSyncStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const deviceId = req.query.deviceId as string;
     const businessId = (req as any).user.businessId;
 
     if (!deviceId) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Device ID is required',
         timestamp: new Date().toISOString(),
       });
+      return;
     }
 
     const [devices] = await pool.execute(
@@ -405,7 +407,7 @@ export async function getSyncStatus(req: Request, res: Response, next: NextFunct
 /**
  * Resolve sync conflicts
  */
-export async function resolveConflict(req: Request, res: Response, next: NextFunction) {
+export async function resolveConflict(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { conflictId, resolution, data } = req.body;
     const userId = (req as any).user.id;
