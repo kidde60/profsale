@@ -30,18 +30,18 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const buttonStyles = [
+  const buttonStyles: any = [
     styles.button,
     styles[variant],
-    styles[size],
+    size && styles[size],
     disabled && styles.disabled,
     style,
   ];
 
-  const textStyles = [
-    styles.text,
+  const textStyles: any = [
+    styles.buttonText,
     styles[`${variant}Text`],
-    styles[`${size}Text`],
+    size && styles[`${size}Text`],
     textStyle,
   ];
 
@@ -104,8 +104,8 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
-  // Text
-  text: {
+  // Text styles
+  buttonText: {
     fontWeight: '600',
   },
   primaryText: {

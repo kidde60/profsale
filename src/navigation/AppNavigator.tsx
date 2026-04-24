@@ -255,7 +255,7 @@ function RootNavigator() {
       />
       <RootStack.Screen
         name="EditStaff"
-        component={AddStaffScreen}
+        component={AddStaffScreen as any}
         options={{ title: 'Edit Staff Member' }}
       />
     </RootStack.Navigator>

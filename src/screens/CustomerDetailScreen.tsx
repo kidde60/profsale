@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text,
-    backgroundColor: COLORS.input,
+    backgroundColor: COLORS.surface,
   },
 });
 

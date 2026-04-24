@@ -63,9 +63,9 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         firstName,
         lastName,
         email,
-        phone: phone || undefined,
+        phone: phone || '',
         password,
-        businessName: businessName || undefined,
+        businessName: businessName || '',
       });
     } catch (error: any) {
       Alert.alert(
