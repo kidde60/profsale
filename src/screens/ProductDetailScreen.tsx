@@ -1,13 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -52,11 +44,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     categoryId: '',
   });
 
-  useEffect(() => {
-    fetchProduct();
-  }, [productId]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const data = await productService.getProduct(productId);
       setProduct(data);
@@ -69,20 +57,22 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         buyingPrice: String(data.buying_price || data.cost_price || ''),
         sellingPrice: String(data.selling_price || ''),
         currentStock: String(
-          data.current_stock ?? data.quantity_in_stock ?? '',
+          String(data.current_stock ?? data.quantity_in_stock ?? ''),
         ),
         minStockLevel: String(data.min_stock_level ?? data.reorder_level ?? ''),
         unit: data.unit || data.unit_of_measure || '',
         categoryId: data.category_id ? String(data.category_id) : '',
       });
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      Alert.alert('Error', 'Failed to load product details');
-      navigation.goBack();
+    } catch {
+      Alert.alert('Error', 'Failed to load product');
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
 
   const handleUpdate = async () => {
     setSaving(true);
@@ -97,7 +87,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         minStockLevel: parseFloat(formData.minStockLevel) || 5,
         unit: formData.unit || 'pieces',
         categoryId: formData.categoryId
-          ? parseInt(formData.categoryId)
+          ? parseInt(formData.categoryId, 10)
           : undefined,
       };
 
@@ -420,7 +410,14 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     ),
                     sellingPrice: String(product.selling_price || ''),
                     currentStock: String(
-                      product.current_stock ?? product.quantity_in_stock ?? '',
+                      parseInt(
+                        String(
+                          product.current_stock ??
+                            product.quantity_in_stock ??
+                            0,
+                        ),
+                        10,
+                      ) || 0,
                     ),
                     minStockLevel: String(
                       product.min_stock_level ?? product.reorder_level ?? '',

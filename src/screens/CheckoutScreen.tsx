@@ -185,7 +185,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Items List */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Order Items</Text>
-          {editableCart.map((item, index) => (
+          {editableCart.map((item, _index) => (
             <View key={item.product.id} style={styles.itemRow}>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.product.name}</Text>

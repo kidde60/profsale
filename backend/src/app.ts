@@ -224,19 +224,12 @@ app.use('*', (req, res) => {
 });
 
 // Basic error handler
-app.use(
-  (
-    err: any,
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction,
-  ) => {
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Error:', err);
 
     res.status(err.status || 500).json({
       success: false,
       message: err.message || 'Internal server error',
-      ...(env === 'development' && { stack: err.stack }),
     });
   },
 );

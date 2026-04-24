@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Input, Button, Card } from '../components';
@@ -37,7 +30,7 @@ interface ProductFormData {
 
 const AddProductScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [_categories, setCategories] = useState<any[]>([]);
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -119,7 +112,7 @@ const AddProductScreen: React.FC<Props> = ({ navigation }) => {
         minStockLevel: parseFloat(formData.minStockLevel) || 5,
         unit: formData.unit || 'pieces',
         categoryId: formData.categoryId
-          ? parseInt(formData.categoryId)
+          ? parseInt(formData.categoryId, 10)
           : undefined,
       };
 

@@ -45,11 +45,11 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchPermissions();
-    if (isEdit) {
+    if (isEdit && staffId) {
       fetchStaffMember();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffId, isEdit]);
 
   const fetchPermissions = async () => {
     try {

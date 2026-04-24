@@ -13,7 +13,7 @@ const config = {
   dbName: process.env.DB_NAME || 'prof_sale',
   dbPort: process.env.DB_PORT || 3306,
   backupDir: process.env.BACKUP_DIR || './backups',
-  retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || '30'),
+  retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || '30', 10),
 };
 
 // Ensure backup directory exists
@@ -36,24 +36,24 @@ function generateBackupFilename() {
 function createBackup() {
   const filename = generateBackupFilename();
   const filepath = path.join(backupDirPath, filename);
-  
+
   console.log(`🔄 Creating backup: ${filename}`);
-  
+
   try {
     const mysqldumpCommand = `mysqldump -h ${config.dbHost} -P ${config.dbPort} -u ${config.dbUser} -p${config.dbPassword} ${config.dbName} > "${filepath}"`;
-    
+
     execSync(mysqldumpCommand, { stdio: 'inherit' });
-    
+
     // Compress the backup
     const gzipCommand = `gzip "${filepath}"`;
     execSync(gzipCommand, { stdio: 'inherit' });
-    
+
     const compressedFile = `${filepath}.gz`;
     const stats = fs.statSync(compressedFile);
-    
+
     console.log(`✅ Backup created successfully: ${compressedFile}`);
     console.log(`📦 Size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
-    
+
     return compressedFile;
   } catch (error) {
     console.error('❌ Backup failed:', error.message);
@@ -66,26 +66,29 @@ function createBackup() {
  */
 function cleanOldBackups() {
   console.log(`🧹 Cleaning backups older than ${config.retentionDays} days`);
-  
+
   try {
     const files = fs.readdirSync(backupDirPath);
     const now = Date.now();
     const retentionMs = config.retentionDays * 24 * 60 * 60 * 1000;
-    
+
     let deletedCount = 0;
-    
+
     files.forEach(file => {
       const filepath = path.join(backupDirPath, file);
       const stats = fs.statSync(filepath);
       const fileAge = now - stats.mtimeMs;
-      
-      if (fileAge > retentionMs && (file.endsWith('.sql') || file.endsWith('.sql.gz'))) {
+
+      if (
+        fileAge > retentionMs &&
+        (file.endsWith('.sql') || file.endsWith('.sql.gz'))
+      ) {
         fs.unlinkSync(filepath);
         console.log(`🗑️  Deleted old backup: ${file}`);
         deletedCount++;
       }
     });
-    
+
     console.log(`✅ Cleaned up ${deletedCount} old backup(s)`);
   } catch (error) {
     console.error('❌ Cleanup failed:', error.message);
@@ -98,17 +101,18 @@ function cleanOldBackups() {
  */
 async function main() {
   console.log('🚀 Starting database backup process');
-  console.log(`📊 Database: ${config.dbName} @ ${config.dbHost}:${config.dbPort}`);
-  console.log(`📁 Backup directory: ${backupDirPath}`);
+  console.log(
+    `📊 Database: ${config.dbName} @ ${config.dbHost}:${config.dbPort}`,
+  );
   console.log('');
-  
+
   try {
     // Create backup
-    const backupFile = createBackup();
-    
+    createBackup();
+
     // Clean old backups
     cleanOldBackups();
-    
+
     console.log('');
     console.log('✨ Backup process completed successfully');
     process.exit(0);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Pressable,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -41,26 +42,23 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
     'create_product',
   );
 
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await productService.getProducts();
+      setProducts(data.items);
+    } catch {
+      Alert.alert('Error', 'Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       fetchProducts();
-    }, []),
+    }, [fetchProducts]),
   );
-
-  const fetchProducts = async () => {
-    try {
-      const response = await productService.getProducts({ search });
-      // Backend returns { success, data: { products, pagination, summary } }
-      const productsData =
-        (response as any)?.data?.products || response.data || [];
-      setProducts(productsData);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
 
   const onRefresh = () => {
     setRefreshing(true);

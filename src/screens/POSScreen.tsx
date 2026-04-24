@@ -16,10 +16,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Card, Button, Input, Loading } from '../components';
 import { productService } from '../services/productService';
-import { Product, Customer } from '../types';
+import { Product } from '../types';
 import { formatCurrency } from '../utils/helpers';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
-import { useAuth } from '../context/AuthContext';
 
 interface CartItem {
   product: Product;
@@ -40,13 +39,14 @@ const POSScreen: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showProductModal, setShowProductModal] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
   const [tempPrice, setTempPrice] = useState('');
 
   useEffect(() => {
     fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -56,9 +56,6 @@ const POSScreen: React.FC = () => {
       // Reset navigation params
       navigation.setParams({ clearCart: undefined } as any);
     }
-  }, [route.params?.clearCart]);
-
-  useEffect(() => {
     if (search.trim()) {
       const filtered = products.filter(
         p =>

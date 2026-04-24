@@ -195,6 +195,7 @@ export interface PaginationParams {
 }
 
 export interface PaginatedResponse<T> {
+  items: Product[];
   success: boolean;
   data: T[];
   pagination: {

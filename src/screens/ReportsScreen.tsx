@@ -28,6 +28,7 @@ const ReportsScreen: React.FC = () => {
 
   useEffect(() => {
     fetchReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, customStartDate, customEndDate]);
 
   const fetchReport = async () => {

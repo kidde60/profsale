@@ -21,6 +21,7 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
 
   useEffect(() => {
     fetchSaleDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saleId]);
 
   const fetchSaleDetails = async () => {

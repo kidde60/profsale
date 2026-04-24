@@ -33,7 +33,8 @@ const CustomerDetailScreen: React.FC = () => {
 
   useEffect(() => {
     fetchCustomer();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId]);
 
   const fetchCustomer = async () => {
     try {
@@ -46,7 +47,7 @@ const CustomerDetailScreen: React.FC = () => {
         email: data.email || '',
         address: data.address || '',
       });
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'Failed to load customer details');
     } finally {
       setLoading(false);

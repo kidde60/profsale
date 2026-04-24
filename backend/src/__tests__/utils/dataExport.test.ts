@@ -1,10 +1,5 @@
 // src/__tests__/utils/dataExport.test.ts - Data export utility tests
-import {
-  toCSV,
-  toJSON,
-  exportSales,
-  exportProducts,
-} from '../../utils/dataExport';
+import { toCSV, toJSON } from '../../utils/dataExport';
 
 describe('Data Export Utilities', () => {
   describe('toCSV', () => {

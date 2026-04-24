@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Opacity,
   Alert,
   TextInput,
   Modal,
@@ -100,8 +101,8 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
       );
       setPendingSubscriptionId(result.data.subscriptionId);
       Alert.alert('Payment Instructions', result.message);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to initiate subscription');
+    } catch {
+      Alert.alert('Error', 'Failed to upgrade subscription');
     } finally {
       setSubscribing(false);
     }
@@ -129,7 +130,7 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
       setPendingSubscriptionId(null);
       setSelectedPlan(null);
       fetchData();
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to confirm payment');
     } finally {
       setSubscribing(false);

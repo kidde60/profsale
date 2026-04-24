@@ -44,8 +44,7 @@ const StaffScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const data = await staffService.getStaff();
       setStaff(data);
-    } catch (error) {
-      console.error('Error fetching staff:', error);
+    } catch {
       Alert.alert('Error', 'Failed to load staff members');
     } finally {
       setLoading(false);
@@ -78,10 +77,10 @@ const StaffScreen: React.FC<Props> = ({ navigation }) => {
           onPress: async () => {
             try {
               await staffService.deleteStaff(staffMember.id);
-              Alert.alert('Success', 'Staff member deactivated');
+              Alert.alert('Success', 'Staff member deleted');
               fetchStaff();
             } catch (error) {
-              Alert.alert('Error', 'Failed to deactivate staff member');
+              Alert.alert('Error', 'Failed to delete staff member');
             }
           },
         },
@@ -102,7 +101,7 @@ const StaffScreen: React.FC<Props> = ({ navigation }) => {
               await staffService.activateStaff(staffMember.id);
               Alert.alert('Success', 'Staff member activated');
               fetchStaff();
-            } catch (error) {
+            } catch {
               Alert.alert('Error', 'Failed to activate staff member');
             }
           },

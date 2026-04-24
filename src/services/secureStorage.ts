@@ -6,8 +6,8 @@ import logger from '../utils/logger';
 let Keychain: any = null;
 try {
   Keychain = require('react-native-keychain');
-} catch (error) {
-  logger.warn('react-native-keychain not installed, falling back to AsyncStorage');
+} catch {
+  console.warn('Keychain not available, falling back to AsyncStorage');
 }
 
 class SecureStorage {

@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, Loading, Button } from '../components';
+import { Card, Loading } from '../components';
 import { customerService } from '../services/customerService';
 import { Customer } from '../types';
 import { Picker } from '@react-native-picker/picker';
@@ -109,7 +109,7 @@ const CustomersScreen: React.FC<Props> = ({ navigation }) => {
         customer_type: 'regular',
       });
       Alert.alert('Success', 'Customer created successfully');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to create customer');
     } finally {
       setCreating(false);

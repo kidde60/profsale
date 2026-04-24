@@ -16,7 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Card, Loading, Button } from '../components';
+import { Card, Loading } from '../components';
 import expenseService, { Expense } from '../services/expenseService';
 import { formatCurrency } from '../utils/helpers';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -98,8 +98,7 @@ const ExpensesScreen: React.FC<Props> = ({ navigation }) => {
         ? response.data
         : response?.data?.expenses || [];
       setExpenses(expensesData);
-    } catch (error) {
-      console.error('Error fetching expenses:', error);
+    } catch {
       Alert.alert('Error', 'Failed to load expenses');
     } finally {
       setLoading(false);
@@ -218,6 +217,7 @@ const ExpensesScreen: React.FC<Props> = ({ navigation }) => {
               setExpenses(prev => prev.filter(e => e.id !== id));
               Alert.alert('Success', 'Expense deleted');
             } catch (error) {
+              console.error('Error deleting expense:', error);
               Alert.alert('Error', 'Failed to delete expense');
             }
           },
