@@ -17,8 +17,8 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     }
     const businessId = req.user.businessId;
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
     const offset = (page - 1) * limit;
 
     // Filters
@@ -198,7 +198,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
     const businessId = req.user.businessId;
-    const expenseId = parseInt(req.params.id as string);
+    const expenseId = parseInt(req.params.id as string, 10);
 
     if (isNaN(expenseId)) {
       res.status(400).json({
@@ -354,7 +354,7 @@ router.put(
         return;
       }
       const businessId = req.user.businessId;
-      const expenseId = parseInt(req.params.id as string);
+      const expenseId = parseInt(req.params.id as string, 10);
 
       if (isNaN(expenseId)) {
         res.status(400).json({
@@ -489,7 +489,7 @@ router.delete(
         return;
       }
       const businessId = req.user.businessId;
-      const expenseId = parseInt(req.params.id as string);
+      const expenseId = parseInt(req.params.id as string, 10);
 
       if (isNaN(expenseId)) {
         res.status(400).json({

@@ -53,18 +53,18 @@ const developmentFormat = [
   '- IP: :real-ip',
 ].join(' ');
 
-// Custom format for production
-const productionFormat = [
-  ':real-ip',
-  '- :user-id',
-  '[:date[clf]]',
-  '":method :url HTTP/:http-version"',
-  ':status',
-  ':response-size',
-  '":referrer"',
-  '":user-agent-short"',
-  ':response-time ms',
-].join(' ');
+// Custom format for production (unused but kept for future use)
+// const productionFormat = [
+//   ':real-ip',
+//   '- :user-id',
+//   '[:date[clf]]',
+//   '":method :url HTTP/:http-version"',
+//   ':status',
+//   ':response-size',
+//   '":referrer"',
+//   '":user-agent-short"',
+//   ':response-time ms',
+// ].join(' ');
 
 // Custom format for JSON logging
 const jsonFormat = (tokens: any, req: Request, res: Response) => {
@@ -72,7 +72,7 @@ const jsonFormat = (tokens: any, req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     method: tokens.method?.(req, res),
     url: tokens.url?.(req, res),
-    status: parseInt(tokens.status?.(req, res) || '0') || 0,
+    status: parseInt(tokens.status?.(req, res) || '0', 10) || 0,
     responseTime: parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
     responseSize: tokens['response-size']?.(req, res),
     userAgent: req.get('User-Agent'),
@@ -105,7 +105,7 @@ const stream = {
       } else {
         logger.info('HTTP Request', logData);
       }
-    } catch (error) {
+    } catch {
       // Fallback to simple string logging
       logger.info(cleanMessage);
     }
@@ -113,7 +113,7 @@ const stream = {
 };
 
 // Skip logging for certain paths
-const skip = (req: Request, res: Response): boolean => {
+const skip = (req: Request, _res: Response): boolean => {
   // Skip health checks and static files in production
   if (process.env.NODE_ENV === 'production') {
     return (
@@ -151,7 +151,7 @@ export const securityLogger = morgan(
       timestamp: new Date().toISOString(),
       method: tokens.method?.(req, res),
       url: tokens.url?.(req, res),
-      status: parseInt(tokens.status?.(req, res) || '0') || 0,
+      status: parseInt(tokens.status?.(req, res) || '0', 10) || 0,
       ip: tokens['real-ip']?.(req, res),
       userAgent: req.get('User-Agent'),
       authorization: req.get('Authorization') ? 'Bearer [HIDDEN]' : 'none',
@@ -191,7 +191,7 @@ export const securityLogger = morgan(
           if (logData.suspicious || logData.status >= 400) {
             logger.warn('Security Alert', logData);
           }
-        } catch (error) {
+        } catch {
           // Ignore parsing errors
         }
       },
@@ -211,7 +211,7 @@ export const apiAccessLogger = morgan(
     const logData = {
       timestamp: new Date().toISOString(),
       endpoint: `${tokens.method?.(req, res)} ${req.route?.path || req.url}`,
-      status: parseInt(tokens.status?.(req, res) || '0') || 0,
+      status: parseInt(tokens.status?.(req, res) || '0', 10) || 0,
       responseTime: parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
       userId: tokens['user-id']?.(req, res),
       businessId: tokens['business-id']?.(req, res),
@@ -226,7 +226,7 @@ export const apiAccessLogger = morgan(
         try {
           const logData = JSON.parse(message.trim());
           logger.info('API Access', logData);
-        } catch (error) {
+        } catch {
           // Ignore parsing errors
         }
       },
@@ -244,9 +244,9 @@ export const errorRequestLogger = morgan(jsonFormat, {
         if (logData.status >= 400) {
           logger.error('HTTP Error', logData);
         }
-      } catch (error) {
+      } catch (err) {
         logger.error('Request logging error', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: err instanceof Error ? err.message : 'Unknown error',
           message,
         });
       }
@@ -264,7 +264,7 @@ export const createRouteLogger = (routeName: string) => {
         route: routeName,
         method: tokens.method?.(req, res),
         url: tokens.url?.(req, res),
-        status: parseInt(tokens.status?.(req, res) || '0') || 0,
+        status: parseInt(tokens.status?.(req, res) || '0', 10) || 0,
         responseTime:
           parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
         userId: tokens['user-id']?.(req, res),
@@ -280,7 +280,7 @@ export const createRouteLogger = (routeName: string) => {
           try {
             const logData = JSON.parse(message.trim());
             logger.info(`Route: ${routeName}`, logData);
-          } catch (error) {
+          } catch {
             logger.info(message.trim());
           }
         },
@@ -300,7 +300,7 @@ export const slowRequestLogger = morgan(jsonFormat, {
           // Log requests slower than 1 second
           logger.warn('Slow Request Detected', logData);
         }
-      } catch (error) {
+      } catch {
         // Ignore parsing errors
       }
     },
@@ -318,7 +318,7 @@ export const uploadLogger = morgan(
       timestamp: new Date().toISOString(),
       method: tokens.method?.(req, res),
       url: tokens.url?.(req, res),
-      status: parseInt(tokens.status?.(req, res) || '0') || 0,
+      status: parseInt(tokens.status?.(req, res) || '0', 10) || 0,
       contentLength: req.get('Content-Length'),
       contentType: req.get('Content-Type'),
       userId: tokens['user-id']?.(req, res),
@@ -335,7 +335,7 @@ export const uploadLogger = morgan(
         try {
           const logData = JSON.parse(message.trim());
           logger.info('File Upload', logData);
-        } catch (error) {
+        } catch {
           logger.info(message.trim());
         }
       },
@@ -409,7 +409,7 @@ export const structuredRequestLogger = (customFields: any = {}) => {
         timestamp: new Date().toISOString(),
         method: tokens.method?.(req, res),
         url: tokens.url?.(req, res),
-        status: parseInt(tokens.status?.(req, res) || '0') || 0,
+        status: parseInt(tokens.status?.(req, res) || '0', 10) || 0,
         responseTime:
           parseFloat(tokens['response-time']?.(req, res) || '0') || 0,
         ip: tokens['real-ip']?.(req, res),
@@ -437,6 +437,14 @@ export const requestLoggerUtils = {
 
 // Request correlation ID middleware (adds unique ID to each request)
 export const addRequestId = (req: Request, res: Response, next: Function) => {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  (req as any).id = requestId;
+  res.set('X-Request-ID', requestId);
+  next();
+};
+
+// Response time logger middleware
+export const logResponseTime = (req: Request, res: Response, next: Function) => {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   (req as any).id = requestId;
   res.set('X-Request-ID', requestId);

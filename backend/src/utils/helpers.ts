@@ -97,7 +97,7 @@ export const calculateProfitMargin = (
  * Parse string to number safely
  */
 export const safeParseInt = (value: any, defaultValue: number = 0): number => {
-  const parsed = parseInt(value);
+  const parsed = parseInt(value, 10);
   return isNaN(parsed) ? defaultValue : parsed;
 };
 
@@ -329,7 +329,8 @@ export const isEmpty = (value: any): boolean => {
  * Get file extension from filename
  */
 export const getFileExtension = (filename: string): string => {
-  return filename.slice(((filename.lastIndexOf('.') - 1) >>> 0) + 2);
+  // eslint-disable-next-line no-bitwise
+  return filename.slice(((filename.lastIndexOf('.') - 1) >> 0) + 2);
 };
 
 /**

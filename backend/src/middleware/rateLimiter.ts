@@ -88,10 +88,10 @@ const rateLimitHandler = (req: Request, res: Response) => {
   });
 };
 
-// Skip successful requests for certain endpoints
-const skipSuccessfulRequests = (req: Request, res: Response) => {
-  return res.statusCode < 400;
-};
+// Skip successful requests for certain endpoints (unused but kept for future use)
+// const skipSuccessfulRequests = (req: Request, res: Response) => {
+//   return res.statusCode < 400;
+// };
 
 // General API rate limiter
 export const generalRateLimit = rateLimit({
@@ -101,7 +101,7 @@ export const generalRateLimit = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   store: createMemoryStore(),
-  skip: (req, res) => {
+  skip: (req, _res) => {
     // Skip rate limiting for health checks
     return req.path === '/health';
   },
@@ -231,7 +231,7 @@ export const subscriptionBasedRateLimit = (
     max: limit.requests,
     message: rateLimitHandler,
     store: createMemoryStore(),
-    keyGenerator: req => `subscription:${user.id}`,
+    keyGenerator: _req => `subscription:${user.id}`,
   });
 
   return dynamicRateLimit(req, res, next);
@@ -266,7 +266,7 @@ export const rateLimitMetrics = {
     const now = Date.now();
     let totalCount = 0;
 
-    for (const [key, data] of Object.entries(memoryStore)) {
+    for (const [_key, data] of Object.entries(memoryStore)) {
       if (now < data.resetTime) {
         stats.activeKeys++;
         totalCount += data.count;

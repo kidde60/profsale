@@ -3,7 +3,6 @@ import bcrypt from 'bcrypt';
 import { pool } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import {
-  requireOwner,
   requireOwnerOrManageStaff,
 } from '../middleware/permissions';
 import nodemailer from 'nodemailer';
@@ -13,25 +12,13 @@ const router = Router();
 // Email configuration (you'll need to set up SMTP credentials)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
+  port: parseInt(process.env.SMTP_PORT || '587', 10),
   secure: false,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
 });
-
-// Generate random password
-function generatePassword(): string {
-  const length = 10;
-  const charset =
-    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-}
 
 // Send password email
 async function sendPasswordEmail(
@@ -107,7 +94,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = (req as any).user.businessId;
-    const staffId = parseInt(req.params.id as string);
+    const staffId = parseInt(req.params.id as string, 10);
 
     const [staff] = await pool.execute<any[]>(
       `SELECT 
@@ -281,7 +268,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const businessId = (req as any).user.businessId;
-      const staffId = parseInt(req.params.id as string);
+      const staffId = parseInt(req.params.id as string, 10);
       const { name, email, phone_number, role, permissions, is_active } =
         req.body;
 
@@ -357,7 +344,7 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
       const businessId = (req as any).user.businessId;
-      const staffId = parseInt(req.params.id as string);
+      const staffId = parseInt(req.params.id as string, 10);
       const userId = (req as any).user.id;
 
       // Prevent owner from deleting themselves
@@ -404,7 +391,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const businessId = (req as any).user.businessId;
-      const staffId = parseInt(req.params.id as string);
+      const staffId = parseInt(req.params.id as string, 10);
 
       // Activate the staff member
       const [result] = await pool.execute<any>(
@@ -440,8 +427,8 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const businessId = (req as any).user.businessId;
-      const staffId = parseInt(req.params.id as string);
-      const limit = parseInt(req.query.limit as string) || 50;
+      const staffId = parseInt(req.params.id as string, 10);
+      const limit = parseInt(req.query.limit as string, 10) || 50;
 
       const [logs] = await pool.execute<any[]>(
         `SELECT 

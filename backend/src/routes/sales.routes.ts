@@ -305,8 +305,8 @@ router.post(
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = req?.user?.businessId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
     const offset = (page - 1) * limit;
 
     // Filters
@@ -342,7 +342,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 
     if (employeeId) {
       whereClause += ' AND s.employee_id = ?';
-      queryParams.push(parseInt(employeeId));
+      queryParams.push(parseInt(employeeId, 10));
     }
 
     // Get total count
@@ -428,7 +428,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
 
-    const saleId = parseInt(saleIdParam);
+    const saleId = parseInt(saleIdParam, 10);
 
     if (isNaN(saleId)) {
       res.status(400).json({
@@ -609,7 +609,7 @@ router.put(
         return;
       }
 
-      const saleId = parseInt(saleIdParam);
+      const saleId = parseInt(saleIdParam, 10);
 
       if (isNaN(saleId)) {
         res.status(400).json({
@@ -853,7 +853,7 @@ router.get(
         return;
       }
 
-      const saleId = parseInt(saleIdParam);
+      const saleId = parseInt(saleIdParam, 10);
 
       if (isNaN(saleId)) {
         res.status(400).json({

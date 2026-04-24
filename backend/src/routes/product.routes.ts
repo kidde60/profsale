@@ -10,8 +10,8 @@ const router = Router();
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = req.user?.businessId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
     const offset = (page - 1) * limit;
 
     // Filters
@@ -32,7 +32,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 
     if (categoryId) {
       whereClause += ' AND p.category_id = ?';
-      queryParams.push(parseInt(categoryId));
+      queryParams.push(parseInt(categoryId, 10));
     }
 
     if (stockStatus) {
@@ -135,7 +135,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
 
-    const productId = parseInt(productIdParam);
+    const productId = parseInt(productIdParam, 10);
 
     if (isNaN(productId)) {
       res.status(400).json({
@@ -395,7 +395,7 @@ router.put(
         return;
       }
 
-      const productId = parseInt(productIdParam);
+      const productId = parseInt(productIdParam, 10);
 
       if (isNaN(productId)) {
         res.status(400).json({
@@ -532,7 +532,7 @@ router.delete(
         return;
       }
 
-      const productId = parseInt(productIdParam);
+      const productId = parseInt(productIdParam, 10);
 
       if (isNaN(productId)) {
         res.status(400).json({

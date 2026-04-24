@@ -17,8 +17,8 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
     const businessId = req.user.businessId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
     const offset = (page - 1) * limit;
 
     // Filters
@@ -147,7 +147,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
 
-    const customerId = parseInt(customerIdParam);
+    const customerId = parseInt(customerIdParam, 10);
 
     if (isNaN(customerId)) {
       res.status(400).json({
@@ -382,7 +382,7 @@ router.put(
         return;
       }
 
-      const customerId = parseInt(customerIdParam);
+      const customerId = parseInt(customerIdParam, 10);
 
       if (isNaN(customerId)) {
         res.status(400).json({
@@ -520,7 +520,7 @@ router.delete(
         return;
       }
 
-      const customerId = parseInt(customerIdParam);
+      const customerId = parseInt(customerIdParam, 10);
 
       if (isNaN(customerId)) {
         res.status(400).json({
@@ -671,7 +671,7 @@ router.get(
         return;
       }
 
-      const customerId = parseInt(customerIdParam);
+      const customerId = parseInt(customerIdParam, 10);
 
       if (isNaN(customerId)) {
         res.status(400).json({
@@ -779,7 +779,7 @@ router.get(
         return;
       }
       const businessId = req.user.businessId;
-      const days = parseInt(req.query.days as string) || 30;
+      const days = parseInt(req.query.days as string, 10) || 30;
 
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);

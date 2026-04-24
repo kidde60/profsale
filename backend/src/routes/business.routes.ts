@@ -2,6 +2,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { requirePermission } from '../middleware/permissions';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -22,25 +23,6 @@ const authenticateToken = (req: Request, res: Response, next: Function) => {
 
   // Mock user for now
   (req as any).user = { id: 3, businessId: 2, role: 'owner' };
-  next();
-};
-
-// Require owner/manager access for settings
-const requireManagementAccess = (
-  req: Request,
-  res: Response,
-  next: Function,
-) => {
-  const userRole = (req as any).user.role;
-
-  if (!['owner', 'manager'].includes(userRole)) {
-    res.status(403).json({
-      success: false,
-      message: 'Management access required',
-    });
-    return;
-  }
-
   next();
 };
 
@@ -212,14 +194,14 @@ router.put(
         success: true,
         message: 'Business profile updated successfully',
       });
-    } catch (error) {
-      console.error('Update business profile error:', error);
+    } catch (err) {
+      logger.error('Error updating business profile');
       res.status(500).json({
         success: false,
         message: 'Failed to update business profile',
         error:
           process.env.NODE_ENV === 'development'
-            ? (error as Error).message
+            ? (err as Error).message
             : undefined,
       });
     }
@@ -270,7 +252,7 @@ router.get(
           case 'json':
             try {
               value = JSON.parse(value);
-            } catch (e) {
+            } catch {
               value = setting.setting_value;
             }
             break;
@@ -629,7 +611,7 @@ router.put(
         return;
       }
 
-      const templateId = parseInt(templateIdParam);
+      const templateId = parseInt(templateIdParam, 10);
 
       if (isNaN(templateId)) {
         res.status(400).json({
@@ -1112,7 +1094,7 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const businessId = (req as any).user.businessId;
-      const days = parseInt(req.query.days as string) || 30;
+      const days = parseInt(req.query.days as string, 10) || 30;
 
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);

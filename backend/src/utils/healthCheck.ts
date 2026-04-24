@@ -34,7 +34,7 @@ async function checkDatabaseHealth(): Promise<ServiceHealth> {
     await connection.ping();
     
     // Run a simple query to ensure database is responsive
-    const [rows] = await connection.execute('SELECT 1 as health_check');
+    const [_rows] = await pool.execute('SELECT 1 as health_check');
     connection.release();
     
     const responseTime = Date.now() - startTime;
@@ -83,7 +83,7 @@ async function checkRedisHealth(): Promise<ServiceHealth | undefined> {
     const redis = require('redis');
     const client = redis.createClient({
       host: process.env.REDIS_HOST,
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
       password: process.env.REDIS_PASSWORD || undefined,
     });
 
@@ -118,7 +118,7 @@ async function checkDiskHealth(): Promise<ServiceHealth | undefined> {
   
   try {
     const fs = require('fs');
-    const path = require('path');
+    // const path = require('path');
     
     // Check if uploads directory exists and has space
     const uploadsDir = process.env.UPLOAD_DIR || './uploads';
@@ -127,7 +127,7 @@ async function checkDiskHealth(): Promise<ServiceHealth | undefined> {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
-    const stats = fs.statSync(uploadsDir);
+    // const stats = fs.statSync(uploadsDir);
     const responseTime = Date.now() - startTime;
     
     return {
@@ -269,7 +269,7 @@ export async function simpleHealthCheck(): Promise<{ status: string; timestamp: 
       status: 'ok',
       timestamp: new Date().toISOString(),
     };
-  } catch (error) {
+  } catch {
     return {
       status: 'error',
       timestamp: new Date().toISOString(),
@@ -288,8 +288,8 @@ export async function readinessCheck(): Promise<{ ready: boolean; checks: any }>
   try {
     await pool.getConnection();
     checks.database = true;
-  } catch (error) {
-    logger.error('Readiness check failed for database');
+  } catch {
+      logger.error('Error checking database health');
   }
   
   const ready = Object.values(checks).every(Boolean);

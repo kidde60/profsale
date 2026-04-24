@@ -20,19 +20,19 @@ export interface SyncData {
  */
 export async function syncData(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const syncData: SyncData = req.body;
+    const syncRequestData: SyncData = req.body;
     const userId = (req as any).user.id;
     const businessId = (req as any).user.businessId;
 
     logger.info('Sync request received', {
-      deviceId: syncData.deviceId,
+      deviceId: syncRequestData.deviceId,
       userId,
       businessId,
-      changesCount: Object.keys(syncData.changes).length,
+      changesCount: Object.keys(syncRequestData.changes).length,
     });
 
     // Validate sync data
-    if (!syncData.deviceId || !syncData.changes) {
+    if (!syncRequestData.deviceId || !syncRequestData.changes) {
       res.status(400).json({
         success: false,
         message: 'Invalid sync data',
@@ -49,8 +49,8 @@ export async function syncData(req: Request, res: Response, next: NextFunction):
       };
 
       // Sync sales
-      if (syncData.changes.sales && syncData.changes.sales.length > 0) {
-        for (const sale of syncData.changes.sales) {
+      if (syncRequestData.changes.sales && syncRequestData.changes.sales.length > 0) {
+        for (const sale of syncRequestData.changes.sales) {
           try {
             // Check if sale already exists
             const [existing] = await connection.execute(
@@ -120,8 +120,8 @@ export async function syncData(req: Request, res: Response, next: NextFunction):
       }
 
       // Sync products
-      if (syncData.changes.products && syncData.changes.products.length > 0) {
-        for (const product of syncData.changes.products) {
+      if (syncRequestData.changes.products && syncRequestData.changes.products.length > 0) {
+        for (const product of syncRequestData.changes.products) {
           try {
             // Check if product exists by barcode or ID
             const [existing] = await connection.execute(
@@ -188,8 +188,8 @@ export async function syncData(req: Request, res: Response, next: NextFunction):
       }
 
       // Sync customers
-      if (syncData.changes.customers && syncData.changes.customers.length > 0) {
-        for (const customer of syncData.changes.customers) {
+      if (syncRequestData.changes.customers && syncRequestData.changes.customers.length > 0) {
+        for (const customer of syncRequestData.changes.customers) {
           try {
             const [existing] = await connection.execute(
               'SELECT id FROM customers WHERE (id = ? OR phone = ?) AND business_id = ?',
@@ -245,8 +245,8 @@ export async function syncData(req: Request, res: Response, next: NextFunction):
       }
 
       // Sync expenses
-      if (syncData.changes.expenses && syncData.changes.expenses.length > 0) {
-        for (const expense of syncData.changes.expenses) {
+      if (syncRequestData.changes.expenses && syncRequestData.changes.expenses.length > 0) {
+        for (const expense of syncRequestData.changes.expenses) {
           try {
             await connection.execute(
               `INSERT INTO expenses (
@@ -279,17 +279,17 @@ export async function syncData(req: Request, res: Response, next: NextFunction):
         `INSERT INTO sync_devices (device_id, business_id, user_id, last_sync)
          VALUES (?, ?, ?, NOW())
          ON DUPLICATE KEY UPDATE last_sync = NOW()`,
-        [syncData.deviceId, businessId, userId],
+        [syncRequestData.deviceId, businessId, userId],
       );
 
       return results;
     });
 
     // Fetch server changes since last sync
-    const serverChanges = await fetchServerChanges(businessId, syncData.lastSyncTimestamp);
+    const serverChanges = await fetchServerChanges(businessId, syncRequestData.lastSyncTimestamp);
 
     logger.info('Sync completed', {
-      deviceId: syncData.deviceId,
+      deviceId: syncRequestData.deviceId,
       synced: syncResults.synced,
       conflicts: syncResults.conflicts.length,
       serverChangesCount: Object.keys(serverChanges).length,

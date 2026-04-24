@@ -115,7 +115,7 @@ export const errorHandler = (
   err: Error | AppError,
   req: Request,
   res: Response,
-  next: NextFunction,
+  _next: NextFunction,
 ): void => {
   let error = err;
 
@@ -279,7 +279,8 @@ export const timeoutHandler = (timeout: number = 30000) => {
 export const errorMonitor = {
   trackError: (error: AppError, req: Request) => {
     // Track error metrics for monitoring
-    const errorData = {
+    // Log error details for monitoring
+    logger.error('Error tracked', {
       type: error.details?.type || 'UNKNOWN',
       statusCode: error.statusCode,
       message: error.message,
@@ -288,7 +289,7 @@ export const errorMonitor = {
       userId: req.user?.id,
       businessId: req.user?.businessId,
       timestamp: new Date(),
-    };
+    });
 
     // In production, you would send this to monitoring service
     if (process.env.NODE_ENV === 'production') {

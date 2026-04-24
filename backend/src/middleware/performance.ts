@@ -69,7 +69,7 @@ export const requestSizeMonitor = (
   res: Response,
   next: NextFunction,
 ): void => {
-  const contentLength = parseInt(req.get('content-length') || '0');
+  const contentLength = parseInt(req.get('content-length') || '0', 10);
 
   if (contentLength > 10 * 1024 * 1024) {
     // 10MB

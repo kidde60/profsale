@@ -298,7 +298,7 @@ export const requireBusinessAccess = async (
     const businessId =
       req.params.businessId || req.body.businessId || req.user.businessId;
 
-    if (req.user.businessId !== parseInt(businessId)) {
+    if (req.user.businessId !== parseInt(businessId, 10)) {
       res.status(403).json({
         success: false,
         message: 'Access denied to this business',
@@ -334,12 +334,12 @@ export const generateToken = (userId: number, businessId: number): string => {
 export const refreshToken = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken: tokenRefresh } = req.body;
 
-    if (!refreshToken) {
+    if (!tokenRefresh) {
       res.status(401).json({
         success: false,
         message: 'Refresh token required',
@@ -348,7 +348,7 @@ export const refreshToken = async (
     }
 
     const decoded = jwt.verify(
-      refreshToken,
+      tokenRefresh,
       process.env.JWT_REFRESH_SECRET!,
     ) as any;
 
@@ -362,7 +362,7 @@ export const refreshToken = async (
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       },
     });
-  } catch (error) {
+  } catch {
     res.status(403).json({
       success: false,
       message: 'Invalid refresh token',

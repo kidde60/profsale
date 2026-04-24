@@ -280,7 +280,7 @@ router.get(
 
       const startDate = req.query.start_date as string;
       const endDate = req.query.end_date as string;
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+      const limit = Math.min(parseInt(req.query.limit as string, 10) || 10, 50);
 
       if (!startDate || !endDate) {
         res.status(400).json({

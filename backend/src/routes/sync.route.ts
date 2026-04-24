@@ -42,7 +42,7 @@ router.get('/products', async (req: Request, res: Response) => {
 
     if (lastSync && lastSync !== '0') {
       query += ' AND updated_at > ?';
-      params.push(new Date(parseInt(lastSync)));
+      params.push(new Date(parseInt(lastSync, 10)));
     }
 
     query += ' ORDER BY updated_at ASC';
@@ -88,7 +88,7 @@ router.post('/products', async (req: Request, res: Response) => {
       try {
         if (product.server_id && product.server_id !== 'null') {
           // Update existing product
-          const [updateResult] = await pool.execute<any>(
+          const [_updateResult] = await pool.execute<any>(
             `UPDATE products SET 
                name = ?, description = ?, barcode = ?,
                buying_price = ?, selling_price = ?, current_stock = ?,
@@ -193,7 +193,7 @@ router.get('/sales', async (req: Request, res: Response) => {
 
     if (lastSync && lastSync !== '0') {
       query += ' AND s.updated_at > ?';
-      params.push(new Date(parseInt(lastSync)));
+      params.push(new Date(parseInt(lastSync, 10)));
     }
 
     query += ' ORDER BY s.updated_at ASC';
@@ -404,7 +404,7 @@ router.post('/full', async (req: Request, res: Response) => {
        FROM products 
        WHERE business_id = ? AND is_active = TRUE AND updated_at > ?
        ORDER BY updated_at ASC`,
-      [businessId, new Date(parseInt(lastSync))],
+      [businessId, new Date(parseInt(lastSync, 10))],
     );
 
     // Get sales with items
@@ -417,7 +417,7 @@ router.post('/full', async (req: Request, res: Response) => {
        FROM sales 
        WHERE business_id = ? AND updated_at > ?
        ORDER BY updated_at ASC`,
-      [businessId, new Date(parseInt(lastSync))],
+      [businessId, new Date(parseInt(lastSync, 10))],
     );
 
     const salesWithItems = await Promise.all(

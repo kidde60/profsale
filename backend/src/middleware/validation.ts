@@ -1,12 +1,6 @@
 // middleware/validation.ts
 import { Request, Response, NextFunction } from 'express';
-import {
-  body,
-  query,
-  param,
-  validationResult,
-  ValidationChain,
-} from 'express-validator';
+import { body, param, query, validationResult } from 'express-validator';
 
 // Validation error handler
 export const handleValidationErrors = (

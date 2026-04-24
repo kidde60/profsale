@@ -7,18 +7,6 @@ import { emailService } from '../utils/emailService';
 
 const router = Router();
 
-// Interface for user data
-interface User {
-  id: number;
-  phone: string;
-  email?: string;
-  first_name: string;
-  last_name: string;
-  password_hash: string;
-  is_verified: boolean;
-  is_active: boolean;
-}
-
 // Generate JWT token
 const generateToken = (
   userId: number,
@@ -30,10 +18,9 @@ const generateToken = (
       userId,
       businessId,
       userType,
-      iat: Math.floor(Date.now() / 1000),
     },
-    process.env.JWT_SECRET!,
-    { expiresIn: '7d' },
+    process.env.JWT_SECRET as string,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as any,
   );
 };
 

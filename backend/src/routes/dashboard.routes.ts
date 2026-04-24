@@ -164,7 +164,7 @@ router.get(
     try {
       const businessId = (req as any).user.businessId;
       const period = (req.query.period as string) || 'week'; // day, week, month
-      const days = parseInt(req.query.days as string) || 30;
+      const days = parseInt(req.query.days as string, 10) || 30;
 
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);

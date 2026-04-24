@@ -18,9 +18,9 @@ async function initializeRedis() {
     const Redis = require('redis');
     redisClient = Redis.createClient({
       host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
       password: process.env.REDIS_PASSWORD || undefined,
-      db: parseInt(process.env.REDIS_DB || '0'),
+      db: parseInt(process.env.REDIS_DB || '0', 10),
     });
 
     await redisClient.connect();
@@ -222,7 +222,7 @@ export const subscriptionBasedRateLimit = async (req: Request, res: Response, ne
     standardHeaders: true,
     legacyHeaders: false,
     store: store as any,
-    keyGenerator: (req: any) => `subscription:${user.id}`,
+    keyGenerator: (_req: any) => `subscription:${user.id}`,
   } as any);
 
   return limiter(req, res, next);
