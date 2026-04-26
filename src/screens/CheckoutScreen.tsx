@@ -118,16 +118,54 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
       }
     }
 
+    if (paymentMethod === 'credit') {
+      if (customerType === 'existing' && !selectedCustomer) {
+        Alert.alert(
+          'Customer Required',
+          'Credit sales must be linked to a customer for proper tracking',
+        );
+        return;
+      }
+      if (customerType === 'new' && !customerName.trim()) {
+        Alert.alert(
+          'Customer Required',
+          'Please enter customer name for credit sales',
+        );
+        return;
+      }
+    }
+
     if (customerType === 'existing' && !selectedCustomer) {
       Alert.alert('Customer Required', 'Please select a customer');
       return;
+    }
+
+    let customerId = selectedCustomer?.id || null;
+
+    // Create new customer if needed
+    if (customerType === 'new' && customerName.trim()) {
+      try {
+        const newCustomer = await customerService.createCustomer({
+          name: customerName.trim(),
+          phone: customerPhone.trim() || undefined,
+          email: undefined,
+          address: undefined,
+          business_id: user?.businessId || 1,
+        });
+        customerId = newCustomer.id;
+      } catch (error) {
+        console.error('Error creating customer:', error);
+        Alert.alert('Error', 'Failed to create customer. Please try again.');
+        setProcessing(false);
+        return;
+      }
     }
 
     try {
       setProcessing(true);
       const saleData = {
         businessId: user?.businessId || 1,
-        customerId: selectedCustomer?.id || null,
+        customerId: customerId,
         customerName:
           customerType === 'existing'
             ? selectedCustomer?.name
@@ -153,7 +191,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
               index: 0,
               routes: [
                 {
-                  name: 'MainTabs',
+                  name: 'Back',
                   state: {
                     routes: [{ name: 'POS', params: { clearCart: true } }],
                   },
@@ -405,7 +443,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
           <View style={styles.paymentMethods}>
-            {(['cash', 'mobile_money', 'card'] as const).map(method => (
+            {(['cash', 'credit'] as const).map(method => (
               <TouchableOpacity
                 key={method}
                 style={[
@@ -420,9 +458,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                     paymentMethod === method && styles.paymentMethodTextActive,
                   ]}
                 >
-                  {method === 'mobile_money'
-                    ? 'Mobile Money'
-                    : method.charAt(0).toUpperCase() + method.slice(1)}
+                  {method === 'credit' ? 'Credit' : 'Cash'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -447,6 +483,28 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                     ]}
                   >
                     {formatCurrency(calculateChange())}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {paymentMethod === 'credit' && (
+            <View style={styles.cashSection}>
+              <Input
+                label="Amount Paid (Optional)"
+                value={amountTendered}
+                onChangeText={setAmountTendered}
+                keyboardType="decimal-pad"
+                placeholder="Leave empty for full credit"
+              />
+              {amountTendered && parseFloat(amountTendered) > 0 && (
+                <View style={styles.changeSection}>
+                  <Text style={styles.changeLabel}>Balance Due:</Text>
+                  <Text style={styles.changeAmount}>
+                    {formatCurrency(
+                      calculateTotal() - parseFloat(amountTendered),
+                    )}
                   </Text>
                 </View>
               )}

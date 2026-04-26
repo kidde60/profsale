@@ -45,7 +45,7 @@ export type MainTabParamList = {
 };
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  Back: undefined;
   ProductDetail: { productId: number };
   SaleDetail: { saleId: number };
   CustomerDetail: { customerId: number };
@@ -189,9 +189,9 @@ function RootNavigator() {
   return (
     <RootStack.Navigator>
       <RootStack.Screen
-        name="MainTabs"
+        name="Back"
         component={MainTabNavigator}
-        options={{ headerShown: false }}
+        options={{ headerShown: false, title: 'Back' }}
       />
       <RootStack.Screen
         name="ProductDetail"
