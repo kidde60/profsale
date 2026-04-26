@@ -24,6 +24,12 @@ export interface CreateSaleData {
   notes?: string;
 }
 
+export interface RefundData {
+  refundReason: string;
+  refundMethod?: 'cash' | 'credit' | 'store_credit';
+  notes?: string;
+}
+
 export const salesService = {
   // Get all sales
   async getSales(params?: PaginationParams): Promise<PaginatedResponse<Sale>> {
@@ -49,6 +55,12 @@ export const salesService = {
   // Cancel/refund sale
   async cancelSale(id: number): Promise<void> {
     await apiClient.put(`/sales/${id}/cancel`);
+  },
+
+  // Refund sale
+  async refundSale(id: number, data: RefundData): Promise<any> {
+    const response = await apiClient.post<ApiResponse<any>>(`/sales/${id}/refund`, data);
+    return response.data.data;
   },
 
   // Get daily sales report
