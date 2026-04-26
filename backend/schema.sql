@@ -101,9 +101,9 @@ CREATE TABLE products (
     barcode VARCHAR(100),
     buying_price DECIMAL(12,2) NOT NULL,
     selling_price DECIMAL(12,2) NOT NULL,
-    current_stock INT DEFAULT 0,
-    min_stock_level INT DEFAULT 5,
-    max_stock_level INT DEFAULT NULL,
+    current_stock DECIMAL(10,2) DEFAULT 0,
+    min_stock_level DECIMAL(10,2) DEFAULT 5,
+    max_stock_level DECIMAL(10,2) DEFAULT NULL,
     unit VARCHAR(20) DEFAULT 'pieces',
     product_image VARCHAR(255),
     tax_rate DECIMAL(5,4) DEFAULT NULL,
@@ -161,8 +161,10 @@ CREATE TABLE sales (
     discount_amount DECIMAL(12,2) DEFAULT 0.00,
     total_amount DECIMAL(12,2) NOT NULL,
     amount_paid DECIMAL(12,2) DEFAULT 0.00,
+    balance_due DECIMAL(12,2) GENERATED ALWAYS AS (total_amount - amount_paid) STORED,
     change_amount DECIMAL(12,2) DEFAULT 0.00,
-    payment_method ENUM('cash', 'mobile_money', 'bank_transfer', 'credit') DEFAULT 'cash',
+    payment_method ENUM('cash', 'credit') DEFAULT 'cash',
+    payment_status ENUM('paid', 'partial', 'unpaid') DEFAULT 'paid',
     payment_reference VARCHAR(100),
     status ENUM('pending', 'completed', 'cancelled', 'refunded') DEFAULT 'completed',
     notes TEXT,
@@ -180,6 +182,7 @@ CREATE TABLE sales (
     INDEX idx_sales_customer (customer_id),
     INDEX idx_sales_status (status),
     INDEX idx_sales_payment_method (payment_method),
+    INDEX idx_sales_payment_status (payment_status),
     INDEX idx_sales_number (sale_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -189,9 +192,11 @@ CREATE TABLE sale_items (
     sale_id INT NOT NULL,
     product_id INT NOT NULL,
     product_name VARCHAR(255) NOT NULL,
-    quantity INT NOT NULL,
+    product_barcode VARCHAR(100),
+    quantity DECIMAL(10,2) NOT NULL,
     unit_price DECIMAL(12,2) NOT NULL,
     total_price DECIMAL(12,2) NOT NULL,
+    cost_price DECIMAL(12,2),
     tax_rate DECIMAL(5,4) DEFAULT 0.0000,
     discount_amount DECIMAL(12,2) DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -200,6 +205,30 @@ CREATE TABLE sale_items (
     FOREIGN KEY (product_id) REFERENCES products(id),
     INDEX idx_sale_items_sale (sale_id),
     INDEX idx_sale_items_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Refunds table (for tracking sale reversals)
+CREATE TABLE refunds (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    business_id INT NOT NULL,
+    sale_id INT NOT NULL,
+    refund_number VARCHAR(50) UNIQUE NOT NULL,
+    refund_amount DECIMAL(12,2) NOT NULL,
+    refund_reason TEXT,
+    refund_method ENUM('cash', 'credit', 'store_credit') DEFAULT 'cash',
+    refunded_by INT NOT NULL,
+    refund_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+    FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+    FOREIGN KEY (refunded_by) REFERENCES users(id),
+    INDEX idx_refunds_business (business_id),
+    INDEX idx_refunds_sale (sale_id),
+    INDEX idx_refunds_date (refund_date),
+    INDEX idx_refunds_number (refund_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Expenses table
@@ -231,9 +260,9 @@ CREATE TABLE inventory_movements (
     business_id INT NOT NULL,
     product_id INT NOT NULL,
     movement_type ENUM('sale', 'purchase', 'adjustment', 'return', 'damage', 'transfer') NOT NULL,
-    quantity_change INT NOT NULL,
-    stock_before INT NOT NULL,
-    stock_after INT NOT NULL,
+    quantity_change DECIMAL(10,2) NOT NULL,
+    stock_before DECIMAL(10,2) NOT NULL,
+    stock_after DECIMAL(10,2) NOT NULL,
     reference_id INT NULL,
     reference_type VARCHAR(50) NULL,
     notes TEXT,
@@ -351,6 +380,199 @@ CREATE TABLE password_resets (
   INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Subscription plans table
+CREATE TABLE subscription_plans (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  plan_name VARCHAR(100) NOT NULL,
+  plan_code VARCHAR(50) UNIQUE NOT NULL,
+  description TEXT,
+  price DECIMAL(12, 2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'UGX',
+  billing_cycle ENUM('monthly', 'yearly') DEFAULT 'monthly',
+  trial_days INT DEFAULT 0,
+  max_users INT DEFAULT 1,
+  max_products INT DEFAULT 100,
+  features JSON,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_plan_code (plan_code),
+  INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert default subscription plans
+INSERT INTO subscription_plans (plan_name, plan_code, description, price, currency, billing_cycle, trial_days, max_users, max_products, features, is_active) VALUES
+('Free Trial', 'free_trial', 'Try ProfSale for free', 0.00, 'UGX', 'monthly', 60, -1, 50, '{"canViewReports": true, "canManageInventory": true, "canManageEmployees": false, "canManageSettings": false}', TRUE),
+('Basic', 'basic', '50 items plan', 5000.00, 'UGX', 'monthly', 0, -1, 50, '{"canViewReports": true, "canManageInventory": true, "canManageEmployees": false, "canManageSettings": false}', TRUE),
+('Standard', 'standard', '80 items plan', 7500.00, 'UGX', 'monthly', 0, -1, 80, '{"canViewReports": true, "canManageInventory": true, "canManageEmployees": true, "canManageSettings": true}', TRUE),
+('Premium', 'premium', '120 items plan', 10000.00, 'UGX', 'monthly', 0, -1, 120, '{"canViewReports": true, "canManageInventory": true, "canManageEmployees": true, "canManageSettings": true, "canUseAPI": true}', TRUE),
+('Enterprise', 'enterprise', '200 items plan', 15000.00, 'UGX', 'monthly', 0, -1, 200, '{"canViewReports": true, "canManageInventory": true, "canManageEmployees": true, "canManageSettings": true, "canUseAPI": true, "prioritySupport": true}', TRUE);
+
+-- Business subscriptions table
+CREATE TABLE business_subscriptions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  plan_id INT NOT NULL,
+  status ENUM('trial', 'active', 'past_due', 'cancelled', 'expired') DEFAULT 'trial',
+  trial_ends_at DATETIME,
+  current_period_start DATETIME,
+  current_period_end DATETIME,
+  auto_renew BOOLEAN DEFAULT TRUE,
+  cancelled_at DATETIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE RESTRICT,
+  UNIQUE KEY unique_business_subscription (business_id),
+  INDEX idx_business_id (business_id),
+  INDEX idx_plan_id (plan_id),
+  INDEX idx_status (status),
+  INDEX idx_trial_ends_at (trial_ends_at),
+  INDEX idx_current_period_end (current_period_end)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Subscription payments table
+CREATE TABLE subscription_payments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  subscription_id INT NOT NULL,
+  plan_id INT NOT NULL,
+  amount DECIMAL(12, 2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'UGX',
+  payment_method ENUM('mobile_money', 'card', 'bank_transfer', 'cash') DEFAULT 'mobile_money',
+  payment_status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
+  transaction_id VARCHAR(100),
+  payment_date DATETIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  FOREIGN KEY (subscription_id) REFERENCES business_subscriptions(id) ON DELETE CASCADE,
+  FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE RESTRICT,
+  INDEX idx_business_id (business_id),
+  INDEX idx_subscription_id (subscription_id),
+  INDEX idx_payment_status (payment_status),
+  INDEX idx_payment_date (payment_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Staff members table
+CREATE TABLE staff_members (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(100) UNIQUE,
+  phone VARCHAR(20),
+  password_hash VARCHAR(255),
+  role ENUM('cashier', 'manager', 'admin') DEFAULT 'cashier',
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  INDEX idx_business_id (business_id),
+  INDEX idx_email (email),
+  INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Staff permissions table
+CREATE TABLE staff_permissions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_id INT NOT NULL,
+  permission_name VARCHAR(50) NOT NULL,
+  is_granted BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (staff_id) REFERENCES staff_members(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_staff_permission (staff_id, permission_name),
+  INDEX idx_staff_id (staff_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Business settings table
+CREATE TABLE business_settings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  setting_key VARCHAR(100) NOT NULL,
+  setting_value TEXT,
+  setting_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_business_setting (business_id, setting_key),
+  INDEX idx_business_id (business_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tax configurations table
+CREATE TABLE tax_configurations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  tax_name VARCHAR(100) NOT NULL,
+  tax_rate DECIMAL(5, 2) NOT NULL,
+  is_default BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  INDEX idx_business_id (business_id),
+  INDEX idx_is_default (is_default),
+  INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Sync devices table
+CREATE TABLE sync_devices (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  device_id VARCHAR(255) NOT NULL,
+  business_id INT NOT NULL,
+  user_id INT,
+  device_name VARCHAR(255),
+  device_type VARCHAR(50),
+  last_sync DATETIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE KEY unique_device (device_id, business_id),
+  INDEX idx_business_id (business_id),
+  INDEX idx_last_sync (last_sync)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Sync conflicts table
+CREATE TABLE sync_conflicts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  conflict_id VARCHAR(255) NOT NULL,
+  business_id INT NOT NULL,
+  user_id INT,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id INT,
+  data JSON,
+  resolution ENUM('pending', 'resolved', 'ignored') DEFAULT 'pending',
+  resolved_at DATETIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_business_id (business_id),
+  INDEX idx_resolution (resolution),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Activity logs table
+CREATE TABLE activity_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  staff_id INT,
+  action VARCHAR(100) NOT NULL,
+  entity_type VARCHAR(50),
+  entity_id INT,
+  details JSON,
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  FOREIGN KEY (staff_id) REFERENCES staff_members(id) ON DELETE SET NULL,
+  INDEX idx_business_id (business_id),
+  INDEX idx_staff_id (staff_id),
+  INDEX idx_action (action),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Create triggers for automatic calculations
 
 -- Trigger to update product stock after sale
@@ -397,8 +619,12 @@ END$$
 DELIMITER ;
 
 -- Insert default data
+-- Note: Default categories and receipt templates require a business to exist first
+-- These should be inserted after creating a business through the application
 
--- Insert default categories
+-- Insert default categories (requires business_id)
+-- Uncomment after creating a business and replace with actual business_id
+/*
 INSERT INTO categories (business_id, name, description) VALUES 
 (1, 'General', 'General products'),
 (1, 'Food & Beverages', 'Food and drink items'),
@@ -406,13 +632,17 @@ INSERT INTO categories (business_id, name, description) VALUES
 (1, 'Clothing', 'Clothing and fashion items'),
 (1, 'Home & Garden', 'Home and garden supplies'),
 (1, 'Health & Beauty', 'Health and beauty products');
+*/
 
 -- Insert default expense categories (these will be used as reference)
 -- Note: These are just examples, actual implementation should be more flexible
 
--- Insert default receipt template
+-- Insert default receipt template (requires business_id)
+-- Uncomment after creating a business and replace with actual business_id
+/*
 INSERT INTO receipt_templates (business_id, template_name, header_text, footer_text, is_default) VALUES
 (1, 'Default Receipt', 'Thank you for your business!', 'Visit us again soon!', TRUE);
+*/
 
 -- Views for common queries
 
