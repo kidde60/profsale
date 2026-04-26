@@ -929,4 +929,158 @@ router.get('/test', (req: Request, res: Response) => {
   });
 });
 
+// Refund sale endpoint
+router.post(
+  '/:saleId/refund',
+  authenticateToken,
+  requirePermission('refund_sale'),
+  async (req: Request, res: Response) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const saleIdParam = req.params.saleId;
+      const { refundReason, refundMethod = 'cash', notes } = req.body;
+      const businessId = req.user?.businessId;
+      const refundedBy = req.user?.id;
+
+      if (!saleIdParam) {
+        res.status(400).json({
+          success: false,
+          message: 'Sale ID is required',
+        });
+        return;
+      }
+
+      const saleId = parseInt(saleIdParam, 10);
+
+      if (isNaN(saleId)) {
+        res.status(400).json({
+          success: false,
+          message: 'Valid sale ID is required',
+        });
+        return;
+      }
+
+      // Get sale details
+      const [sales] = await connection.execute<any[]>(
+        'SELECT * FROM sales WHERE id = ? AND business_id = ?',
+        [saleId, businessId],
+      );
+
+      if (sales.length === 0) {
+        res.status(404).json({
+          success: false,
+          message: 'Sale not found',
+        });
+        return;
+      }
+
+      const sale = sales[0];
+
+      // Check if sale is already refunded
+      if (sale.status === 'refunded' || sale.status === 'cancelled') {
+        res.status(400).json({
+          success: false,
+          message: 'Sale has already been refunded or cancelled',
+        });
+        return;
+      }
+
+      // Get sale items
+      const [saleItems] = await connection.execute<any[]>(
+        'SELECT * FROM sale_items WHERE sale_id = ?',
+        [saleId],
+      );
+
+      // Restore inventory for each item
+      for (const item of saleItems) {
+        await connection.execute(
+          'UPDATE products SET current_stock = current_stock + ? WHERE id = ?',
+          [item.quantity, item.product_id],
+        );
+
+        // Create inventory movement for refund
+        await connection.execute(
+          `INSERT INTO inventory_movements 
+           (business_id, product_id, movement_type, quantity_change, stock_before, stock_after, reference_id, reference_type, created_by)
+           VALUES (?, ?, 'return', ?, 
+             (SELECT current_stock FROM products WHERE id = ?),
+             (SELECT current_stock FROM products WHERE id = ?) + ?,
+             ?, 'refund', ?)`,
+          [
+            businessId,
+            item.product_id,
+            item.quantity,
+            item.product_id,
+            item.product_id,
+            item.quantity,
+            saleId,
+            refundedBy,
+          ],
+        );
+      }
+
+      // Generate refund number
+      const now = new Date();
+      const dateStr =
+        now.getFullYear().toString() +
+        (now.getMonth() + 1).toString().padStart(2, '0') +
+        now.getDate().toString().padStart(2, '0');
+      const timeStr =
+        now.getHours().toString().padStart(2, '0') +
+        now.getMinutes().toString().padStart(2, '0') +
+        now.getSeconds().toString().padStart(2, '0');
+      const refundNumber = `RF${businessId}${dateStr}${timeStr}`;
+
+      // Create refund record
+      await connection.execute(
+        `INSERT INTO refunds 
+         (business_id, sale_id, refund_number, refund_amount, refund_reason, refund_method, refunded_by, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          businessId,
+          saleId,
+          refundNumber,
+          sale.total_amount,
+          refundReason || 'No reason provided',
+          refundMethod,
+          refundedBy,
+          notes || null,
+        ],
+      );
+
+      // Update sale status
+      await connection.execute(
+        'UPDATE sales SET status = ?, cancelled_at = NOW(), cancellation_reason = ? WHERE id = ?',
+        ['refunded', refundReason || 'Sale refunded', saleId],
+      );
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: 'Sale refunded successfully',
+        data: {
+          refundNumber,
+          refundAmount: sale.total_amount,
+        },
+      });
+    } catch (error) {
+      await connection.rollback();
+      console.error('Refund sale error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to refund sale',
+        error:
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : undefined,
+      });
+    } finally {
+      connection.release();
+    }
+  },
+);
+
 export default router;

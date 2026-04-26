@@ -475,6 +475,10 @@ router.put(
               values.push(value);
             }
             break;
+          case 'productImage':
+            updates.push('product_image = ?');
+            values.push(value);
+            break;
         }
       });
 

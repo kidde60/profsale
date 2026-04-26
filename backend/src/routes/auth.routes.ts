@@ -88,7 +88,7 @@ router.post('/register', async (req: Request, res: Response) => {
         `INSERT INTO users 
         (phone, email, first_name, last_name, password_hash, is_verified, is_active) 
         VALUES (?, ?, ?, ?, ?, FALSE, TRUE)`,
-        [normalizedPhone, email, firstName, lastName, passwordHash],
+        [phone, email, firstName, lastName, passwordHash],
       );
 
       const userId = userResult.insertId;
@@ -105,9 +105,9 @@ router.post('/register', async (req: Request, res: Response) => {
 
       // Create business-employee relationship (owner)
       await connection.execute(
-        `INSERT INTO business_employees 
-        (user_id, business_id, role, permissions, is_active) 
-        VALUES (?, ?, 'owner', ?, TRUE)`,
+        `INSERT INTO business_users 
+        (user_id, business_id, role, permissions, joined_at) 
+        VALUES (?, ?, 'owner', ?, NOW())`,
         [
           userId,
           businessId,
@@ -205,11 +205,11 @@ router.post('/login', async (req: Request, res: Response) => {
         u.id, u.phone, u.email, u.first_name, u.last_name, u.password_hash,
         u.is_verified, u.is_active,
         b.id as business_id, b.business_name, b.is_active as business_active,
-        be.role, be.permissions, be.is_active as employee_active,
+        bu.role, bu.permissions, bu.is_active as employee_active,
         'user' as user_type
       FROM users u
-      LEFT JOIN business_employees be ON u.id = be.user_id
-      LEFT JOIN businesses b ON be.business_id = b.id
+      LEFT JOIN business_users bu ON u.id = bu.user_id
+      LEFT JOIN businesses b ON bu.business_id = b.id
       WHERE (u.phone = ? OR u.email = ?) AND u.is_active = TRUE`,
       [login, login],
     );
@@ -218,7 +218,7 @@ router.post('/login', async (req: Request, res: Response) => {
     if (users.length === 0) {
       const [staff] = await pool.execute<any[]>(
         `SELECT 
-          s.id, s.email, s.phone_number as phone, s.name, s.password_hash,
+          s.id, s.email, s.phone, s.name, s.password_hash,
           s.is_active, s.business_id, s.role,
           b.business_name, b.is_active as business_active,
           GROUP_CONCAT(sp.permission_name) as permissions,
@@ -226,7 +226,7 @@ router.post('/login', async (req: Request, res: Response) => {
         FROM staff_members s
         JOIN businesses b ON s.business_id = b.id
         LEFT JOIN staff_permissions sp ON s.id = sp.staff_id AND sp.is_granted = TRUE
-        WHERE (s.email = ? OR s.phone_number = ?) AND s.is_active = TRUE
+        WHERE (s.email = ? OR s.phone = ?) AND s.is_active = TRUE
         GROUP BY s.id`,
         [login, login],
       );
@@ -430,10 +430,10 @@ router.get('/profile', async (req: Request, res: Response) => {
         u.id, u.phone, u.email, u.first_name, u.last_name,
         u.is_verified, u.is_active, u.created_at,
         b.id as business_id, b.business_name, b.business_type,
-        be.role, be.permissions, be.joined_at
+        bu.role, bu.permissions, bu.joined_at
       FROM users u
-      LEFT JOIN business_employees be ON u.id = be.user_id
-      LEFT JOIN businesses b ON be.business_id = b.id
+      LEFT JOIN business_users bu ON u.id = bu.user_id
+      LEFT JOIN businesses b ON bu.business_id = b.id
       WHERE u.id = ?`,
       [userId],
     );

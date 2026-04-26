@@ -9,7 +9,7 @@ const router = Router();
 router.get('/plans', async (req: Request, res: Response) => {
   try {
     const [plans] = await pool.execute<any[]>(
-      `SELECT id, name, price, currency, billing_cycle, max_products, 
+      `SELECT id, plan_name, price, currency, billing_cycle, max_products,
               trial_days, features, is_active
        FROM subscription_plans
        WHERE is_active = TRUE
@@ -44,7 +44,7 @@ router.get(
       }
 
       const [subscriptions] = await pool.execute<any[]>(
-        `SELECT bs.*, sp.name as plan_name, sp.price, sp.currency, 
+        `SELECT bs.*, sp.plan_name, sp.price, sp.currency,
                 sp.max_products, sp.features
          FROM business_subscriptions bs
          JOIN subscription_plans sp ON bs.plan_id = sp.id
@@ -238,7 +238,7 @@ router.get(
       }
 
       const [payments] = await pool.execute<any[]>(
-        `SELECT sp.*, spl.name as plan_name
+        `SELECT sp.*, spl.plan_name
          FROM subscription_payments sp
          JOIN subscription_plans spl ON sp.plan_id = spl.id
          WHERE sp.business_id = ?
