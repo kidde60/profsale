@@ -6,8 +6,8 @@ let globalLogoutHandler: null | (() => void) = null;
 export function setGlobalLogoutHandler(handler: () => void) {
   globalLogoutHandler = handler;
 }
-
-const API_URL = 'https://profsale.dangotechconcepts.com/api';
+// const API_URL = 'https://profsale.dangotechconcepts.com/api';
+const API_URL = 'http://localhost:6000/api';
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,

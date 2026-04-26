@@ -45,6 +45,16 @@ export const formatNumber = (num: number): string => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
+// Format stock value without trailing zeros
+export const formatStock = (stock: number | string | null | undefined): string => {
+  const numStock = typeof stock === 'string' ? parseFloat(stock) : stock;
+  if (numStock === null || numStock === undefined || isNaN(numStock)) {
+    return '0';
+  }
+  // Remove trailing zeros by parsing and converting back to string
+  return parseFloat(numStock.toString()).toString();
+};
+
 // Truncate text
 export const truncateText = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
