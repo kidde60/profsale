@@ -43,7 +43,9 @@ const StockRecordsScreen: React.FC<Props> = ({ navigation }) => {
   const [records, setRecords] = useState<StockRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'restock' | 'sale' | 'adjustment' | 'return'>('all');
+  const [filter, setFilter] = useState<
+    'all' | 'restock' | 'sale' | 'adjustment' | 'return'
+  >('all');
 
   useEffect(() => {
     fetchRecords();
@@ -71,16 +73,20 @@ const StockRecordsScreen: React.FC<Props> = ({ navigation }) => {
     fetchRecords();
   };
 
-  const getChangeTypeColor = (type: string) => {
-    switch (type) {
+  const getChangeTypeColor = (changeType: string) => {
+    switch (changeType) {
       case 'restock':
         return COLORS.success;
       case 'sale':
-        return COLORS.error;
+        return COLORS.primary;
       case 'adjustment':
         return COLORS.warning;
       case 'return':
         return COLORS.primary;
+      case 'damage':
+        return COLORS.error;
+      case 'expiry':
+        return COLORS.error;
       default:
         return COLORS.textSecondary;
     }
@@ -112,9 +118,7 @@ const StockRecordsScreen: React.FC<Props> = ({ navigation }) => {
           <Text
             style={[
               styles.value,
-              item.quantity_change > 0
-                ? styles.positive
-                : styles.negative,
+              item.quantity_change > 0 ? styles.positive : styles.negative,
             ]}
           >
             {item.quantity_change > 0 ? '+' : ''}
@@ -158,7 +162,10 @@ const StockRecordsScreen: React.FC<Props> = ({ navigation }) => {
           type => (
             <TouchableOpacity
               key={type}
-              style={[styles.filterChip, filter === type && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                filter === type && styles.filterChipActive,
+              ]}
               onPress={() => setFilter(type)}
             >
               <Text

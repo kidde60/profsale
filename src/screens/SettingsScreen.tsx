@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const { user, logout } = useAuth();
   const permissions = user?.permissions || {};
   const role = user?.role || 'owner';
+  const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -63,7 +64,24 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       title: 'Reports',
-      onPress: () => navigation.navigate('Reports'),
+      hasSubmenu: true,
+      subItems: [
+        {
+          title: 'Profit & Loss',
+          onPress: () => navigation.navigate('Reports'),
+          show: canAccess('reports'),
+        },
+        {
+          title: 'Restock Report',
+          onPress: () => navigation.navigate('RestockReport'),
+          show: canAccess('reports'),
+        },
+        {
+          title: 'Stock Records',
+          onPress: () => navigation.navigate('StockRecords'),
+          show: canAccess('reports'),
+        },
+      ],
       show: canAccess('reports'),
     },
     {
@@ -106,14 +124,55 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         {/* Menu Items */}
         <Card>
           {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.menuItem}
-              onPress={item.onPress}
-            >
-              <Text style={styles.menuText}>{item.title}</Text>
-              <Text style={styles.menuArrow}>›</Text>
-            </TouchableOpacity>
+            <View key={index}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  if (item.hasSubmenu) {
+                    setExpandedMenu(
+                      expandedMenu === item.title ? null : item.title,
+                    );
+                  } else {
+                    item.onPress?.();
+                  }
+                }}
+              >
+                <Text style={styles.menuText}>{item.title}</Text>
+                <Text
+                  style={[
+                    styles.menuArrow,
+                    item.hasSubmenu &&
+                      expandedMenu === item.title &&
+                      styles.menuArrowRotated,
+                  ]}
+                >
+                  {item.hasSubmenu
+                    ? expandedMenu === item.title
+                      ? '▼'
+                      : '▶'
+                    : '›'}
+                </Text>
+              </TouchableOpacity>
+              {item.hasSubmenu &&
+                expandedMenu === item.title &&
+                item.subItems && (
+                  <View style={styles.submenu}>
+                    {item.subItems
+                      .filter(subItem => subItem.show)
+                      .map((subItem, subIndex) => (
+                        <TouchableOpacity
+                          key={subIndex}
+                          style={styles.submenuItem}
+                          onPress={subItem.onPress}
+                        >
+                          <Text style={styles.submenuText}>
+                            {subItem.title}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                  </View>
+                )}
+            </View>
           ))}
         </Card>
 
@@ -177,6 +236,25 @@ const styles = StyleSheet.create({
   menuArrow: {
     fontSize: TYPOGRAPHY.fontSize.xl,
     color: COLORS.textLight,
+  },
+  menuArrowRotated: {
+    transform: [{ rotate: '90deg' }],
+  },
+  submenu: {
+    backgroundColor: COLORS.background,
+    paddingLeft: SPACING.lg,
+  },
+  submenuItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  submenuText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text,
   },
   logoutButton: {
     marginTop: SPACING.lg,

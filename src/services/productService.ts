@@ -79,6 +79,31 @@ export const productService = {
     return response.data.data;
   },
 
+  // Get restock report with aggregated data
+  async getRestockReport(params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any> {
+    const response = await apiClient.get<ApiResponse<any>>(
+      '/products/reports/restock',
+      { params },
+    );
+    return response.data.data;
+  },
+
+  // Record damaged or expired products
+  async recordDamage(productId: number, data: {
+    quantity: number;
+    reason: string;
+    changeType?: 'damage' | 'expiry';
+  }): Promise<any> {
+    const response = await apiClient.post<ApiResponse<any>>(
+      `/products/${productId}/damage`,
+      data,
+    );
+    return response.data.data;
+  },
+
   // Search by barcode
   async searchByBarcode(barcode: string): Promise<Product | null> {
     const response = await apiClient.get<ApiResponse<Product>>(
