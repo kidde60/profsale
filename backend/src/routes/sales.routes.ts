@@ -896,12 +896,28 @@ router.get(
         [saleId],
       );
 
+      // Get refund information if sale is refunded
+      let refundData = null;
+      if (sales[0].status === 'refunded') {
+        const [refunds] = await pool.execute<any[]>(
+          `SELECT r.*, u.first_name as refunded_by_first_name, u.last_name as refunded_by_last_name
+           FROM refunds r
+           LEFT JOIN users u ON r.refunded_by = u.id
+           WHERE r.sale_id = ?`,
+          [saleId],
+        );
+        if (refunds.length > 0) {
+          refundData = refunds[0];
+        }
+      }
+
       res.json({
         success: true,
         data: {
           business: business[0],
           sale: sales[0],
           items: saleItems,
+          refund: refundData,
           receiptNumber: sales[0].sale_number,
           generatedAt: new Date().toISOString(),
         },
@@ -919,6 +935,210 @@ router.get(
     }
   },
 );
+
+// Record payment for credit sale
+router.post(
+  '/:saleId/payment',
+  authenticateToken,
+  requirePermission('record_payment'),
+  async (req: Request, res: Response) => {
+    const { saleId: saleIdParam } = req.params;
+    const { amount, payment_method, notes } = req.body;
+    const businessId = (req as any).user?.businessId;
+    const userId = (req as any).user?.id;
+
+    if (!saleIdParam) {
+      res.status(400).json({
+        success: false,
+        message: 'Sale ID is required',
+      });
+      return;
+    }
+
+    const saleId = parseInt(saleIdParam, 10);
+
+    if (isNaN(saleId)) {
+      res.status(400).json({
+        success: false,
+        message: 'Valid sale ID is required',
+      });
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Valid payment amount is required',
+      });
+      return;
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Get sale details
+      const [sales] = await connection.execute<any[]>(
+        'SELECT * FROM sales WHERE id = ? AND business_id = ?',
+        [saleId, businessId],
+      );
+
+      if (sales.length === 0) {
+        await connection.rollback();
+        res.status(404).json({
+          success: false,
+          message: 'Sale not found',
+        });
+        return;
+      }
+
+      const sale = sales[0];
+
+      if (sale.payment_method !== 'credit') {
+        await connection.rollback();
+        res.status(400).json({
+          success: false,
+          message: 'This is not a credit sale',
+        });
+        return;
+      }
+
+      if (sale.status === 'paid' || sale.status === 'refunded') {
+        await connection.rollback();
+        res.status(400).json({
+          success: false,
+          message: 'Cannot record payment on this sale',
+        });
+        return;
+      }
+
+      const currentPaid = sale.amount_paid || 0;
+      const totalAmount = sale.total_amount;
+      const newPaid = currentPaid + amount;
+
+      if (newPaid > totalAmount) {
+        await connection.rollback();
+        res.status(400).json({
+          success: false,
+          message: `Payment amount exceeds balance due. Balance due: ${totalAmount - currentPaid}`,
+        });
+        return;
+      }
+
+      // Update sale
+      const newStatus = newPaid >= totalAmount ? 'paid' : 'partial';
+      await connection.execute(
+        `UPDATE sales SET amount_paid = ?, payment_status = ?, updated_at = NOW() WHERE id = ?`,
+        [newPaid, newStatus, saleId],
+      );
+
+      // Create payment record
+      await connection.execute(
+        `INSERT INTO payment_records 
+         (business_id, sale_id, amount, payment_method, recorded_by, notes)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [businessId, saleId, amount, payment_method || 'cash', userId, notes || null],
+      );
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: 'Payment recorded successfully',
+        data: {
+          paymentAmount: amount,
+          totalPaid: newPaid,
+          balanceDue: totalAmount - newPaid,
+          status: newStatus,
+        },
+      });
+    } catch (error) {
+      await connection.rollback();
+      console.error('Record payment error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to record payment',
+        error:
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : undefined,
+      });
+    } finally {
+      connection.release();
+    }
+  },
+);
+
+// Get refund reports
+router.get('/reports/refunds', authenticateToken, async (req: Request, res: Response) => {
+  const businessId = (req as any).user?.businessId;
+  const { startDate, endDate } = req.query;
+
+  const connection = await pool.getConnection();
+  try {
+    let query = `
+      SELECT 
+        r.*,
+        s.sale_number,
+        s.total_amount as sale_amount,
+        c.name as customer_name,
+        u.first_name as refunded_by_first_name,
+        u.last_name as refunded_by_last_name
+      FROM refunds r
+      JOIN sales s ON r.sale_id = s.id
+      LEFT JOIN customers c ON s.customer_id = c.id
+      LEFT JOIN users u ON r.refunded_by = u.id
+      WHERE r.business_id = ?
+    `;
+    const params: any[] = [businessId];
+
+    if (startDate) {
+      query += ' AND r.refund_date >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ' AND r.refund_date <= ?';
+      params.push(endDate);
+    }
+
+    query += ' ORDER BY r.refund_date DESC';
+
+    const [refunds] = await connection.execute<any[]>(query, params);
+
+    // Calculate summary statistics
+    const [summary] = await connection.execute<any[]>(`
+      SELECT 
+        COUNT(*) as total_refunds,
+        SUM(r.refund_amount) as total_refund_amount,
+        COUNT(DISTINCT r.refund_method) as refund_methods_used
+      FROM refunds r
+      WHERE r.business_id = ?
+      ${startDate ? 'AND r.refund_date >= ?' : ''}
+      ${endDate ? 'AND r.refund_date <= ?' : ''}
+    `, params);
+
+    res.json({
+      success: true,
+      data: {
+        refunds,
+        summary: summary[0],
+      },
+    });
+  } catch (error) {
+    console.error('Get refund reports error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get refund reports',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? (error as Error).message
+          : undefined,
+    });
+  } finally {
+    connection.release();
+  }
+});
 
 // Test endpoint
 router.get('/test', (req: Request, res: Response) => {

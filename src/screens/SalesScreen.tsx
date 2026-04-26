@@ -6,12 +6,15 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, Loading } from '../components';
 import { salesService } from '../services/salesService';
 import { Sale } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
+import { handleError } from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -26,21 +29,57 @@ interface Props {
 
 const SalesScreen: React.FC<Props> = ({ navigation }) => {
   const [sales, setSales] = useState<Sale[]>([]);
+  const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchSales();
   }, []);
 
+  useEffect(() => {
+    filterSales();
+  }, [sales, searchQuery, statusFilter]);
+
+  const filterSales = () => {
+    let filtered = sales;
+
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter(
+        sale =>
+          sale.customer_name
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          sale.sale_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          sale.id.toString().includes(searchQuery),
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(sale => sale.status === statusFilter);
+    }
+
+    // Sort by date descending (latest first)
+    filtered = filtered.sort((a, b) => {
+      const dateA = a.sale_date ? new Date(a.sale_date).getTime() : 0;
+      const dateB = b.sale_date ? new Date(b.sale_date).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    setFilteredSales(filtered);
+  };
+
   const fetchSales = async () => {
     try {
       const response = await salesService.getSales();
-      // Backend returns nested structure: { data: { sales: [...], pagination: {...}, summary: {...} } }
       const salesData = (response as any)?.data?.sales || response.data || [];
       setSales(salesData);
     } catch (error) {
-      console.error('Error fetching sales:', error);
+      handleError(error, 'Failed to load sales');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -120,8 +159,46 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.filterContainer}>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by customer or sale #"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={COLORS.textSecondary}
+          />
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+        >
+          {['all', 'completed', 'pending', 'refunded', 'cancelled'].map(
+            status => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.filterChip,
+                  statusFilter === status && styles.filterChipActive,
+                ]}
+                onPress={() => setStatusFilter(status)}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    statusFilter === status && styles.filterChipTextActive,
+                  ]}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ),
+          )}
+        </ScrollView>
+      </View>
       <FlatList
-        data={sales}
+        data={filteredSales}
         renderItem={renderSale}
         keyExtractor={item => item.id.toString()}
         refreshControl={
@@ -131,6 +208,7 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
         ListEmptyComponent={
           <Text style={styles.emptyText}>No sales found</Text>
         }
+        style={{ flex: 1 }}
       />
     </View>
   );
@@ -141,8 +219,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  filterContainer: {
+    backgroundColor: COLORS.background,
+    padding: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  searchContainer: {
+    marginBottom: SPACING.sm,
+  },
+  searchInput: {
+    backgroundColor: COLORS.white,
+    borderRadius: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filterScroll: {
+    flexDirection: 'row',
+  },
+  filterChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 20,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginRight: SPACING.sm,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterChipText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: COLORS.white,
+  },
   list: {
     padding: SPACING.md,
+    flexGrow: 1,
   },
   saleCard: {
     flexDirection: 'row',

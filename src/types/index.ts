@@ -84,6 +84,7 @@ export interface Customer {
   total_orders: number;
   loyalty_points: number;
   customer_type: 'regular' | 'vip' | 'wholesale';
+  credit_balance?: number;
   last_purchase_date?: string;
   created_at: string;
   updated_at: string;
@@ -98,6 +99,21 @@ export interface SaleItem {
   discount: number;
   subtotal: number;
   product?: Product;
+}
+
+export interface Refund {
+  id: number;
+  business_id: number;
+  sale_id: number;
+  refund_number: string;
+  refund_amount: number;
+  refund_reason: string;
+  refund_method: 'cash' | 'credit' | 'store_credit';
+  refunded_by: number;
+  refund_date: string;
+  notes?: string;
+  refunded_by_first_name?: string;
+  refunded_by_last_name?: string;
 }
 
 export interface Sale {
@@ -124,6 +140,7 @@ export interface Sale {
   customer?: Customer;
   items?: SaleItem[];
   item_count?: number;
+  refund?: Refund;
 }
 
 export interface DashboardStats {

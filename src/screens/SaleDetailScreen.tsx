@@ -13,6 +13,7 @@ import { Card, Loading, Button } from '../components';
 import { salesService } from '../services/salesService';
 import { Sale } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
+import { handleError, handleSuccess } from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -30,6 +31,9 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
   const [refundReason, setRefundReason] = useState('');
   const [refundNotes, setRefundNotes] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
 
   useEffect(() => {
     fetchSaleDetails();
@@ -42,8 +46,7 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
       console.log('Sale data received:', data);
       setSale(data);
     } catch (error) {
-      console.error('Error fetching sale details:', error);
-      Alert.alert('Error', 'Failed to load sale details');
+      handleError(error, 'Failed to load sale details');
     } finally {
       setLoading(false);
     }
@@ -54,12 +57,9 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
       Alert.alert('Error', 'Please provide a reason for the refund');
       return;
     }
-
     Alert.alert(
       'Confirm Refund',
-      `Are you sure you want to refund this sale for ${formatCurrency(
-        sale?.total_amount || 0,
-      )}?`,
+      `Are you sure you want to refund this sale?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -69,24 +69,61 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
             try {
               setProcessing(true);
               await salesService.refundSale(saleId, {
-                refundReason: refundReason.trim(),
-                refundMethod: 'cash',
+                reason: refundReason.trim(),
+                method: 'cash',
                 notes: refundNotes.trim() || undefined,
               });
-              Alert.alert('Success', 'Sale refunded successfully', [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    setShowRefundModal(false);
-                    setRefundReason('');
-                    setRefundNotes('');
-                    fetchSaleDetails();
-                  },
-                },
-              ]);
+              handleSuccess('Sale refunded successfully');
+              setShowRefundModal(false);
+              setRefundReason('');
+              setRefundNotes('');
+              fetchSaleDetails();
             } catch (error) {
-              console.error('Error refunding sale:', error);
-              Alert.alert('Error', 'Failed to refund sale');
+              handleError(error, 'Failed to refund sale');
+            } finally {
+              setProcessing(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handlePayment = async () => {
+    const amount = parseFloat(paymentAmount);
+    if (!amount || amount <= 0) {
+      Alert.alert('Error', 'Please enter a valid payment amount');
+      return;
+    }
+    const balanceDue = sale!.total_amount - (sale!.amount_paid || 0);
+    if (amount > balanceDue) {
+      Alert.alert(
+        'Error',
+        `Payment amount exceeds balance due (${balanceDue})`,
+      );
+      return;
+    }
+    Alert.alert(
+      'Confirm Payment',
+      `Record payment of ${formatCurrency(amount)}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            try {
+              setProcessing(true);
+              await salesService.recordPayment(saleId, {
+                amount,
+                notes: paymentNotes.trim() || undefined,
+              });
+              handleSuccess('Payment recorded successfully');
+              setShowPaymentModal(false);
+              setPaymentAmount('');
+              setPaymentNotes('');
+              fetchSaleDetails();
+            } catch (error) {
+              handleError(error, 'Failed to record payment');
             } finally {
               setProcessing(false);
             }
@@ -137,6 +174,28 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
             {sale.sale_date ? formatDate(sale.sale_date) : 'N/A'}
           </Text>
         </Card>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          {sale.status !== 'refunded' && sale.status !== 'cancelled' && (
+            <Button
+              title="Refund Sale"
+              onPress={() => setShowRefundModal(true)}
+              variant="danger"
+              style={styles.actionButton}
+            />
+          )}
+          {sale.payment_method === 'credit' &&
+            sale.status !== 'paid' &&
+            sale.status !== 'refunded' &&
+            sale.status !== 'cancelled' && (
+              <Button
+                title="Record Payment"
+                onPress={() => setShowPaymentModal(true)}
+                style={styles.actionButton}
+              />
+            )}
+        </View>
 
         {/* Customer Information */}
         <Card>
@@ -315,14 +374,44 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
           </Card>
         )}
 
-        {/* Refund Button */}
-        {sale.status !== 'refunded' && sale.status !== 'cancelled' && (
-          <Button
-            title="Refund Sale"
-            onPress={() => setShowRefundModal(true)}
-            variant="outline"
-            style={styles.refundButton}
-          />
+        {/* Refund History */}
+        {sale.status === 'refunded' && sale.refund && (
+          <Card>
+            <Text style={styles.sectionTitle}>Refund Details</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Refund Number:</Text>
+              <Text style={styles.value}>{sale.refund.refund_number}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Refund Amount:</Text>
+              <Text style={styles.value}>
+                {formatCurrency(sale.refund.refund_amount)}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Refund Date:</Text>
+              <Text style={styles.value}>
+                {formatDate(sale.refund.refund_date)}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Refund Reason:</Text>
+              <Text style={styles.value}>{sale.refund.refund_reason}</Text>
+            </View>
+            {sale.refund.notes && (
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Refund Notes:</Text>
+                <Text style={styles.value}>{sale.refund.notes}</Text>
+              </View>
+            )}
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Refunded By:</Text>
+              <Text style={styles.value}>
+                {sale.refund.refunded_by_first_name}{' '}
+                {sale.refund.refunded_by_last_name}
+              </Text>
+            </View>
+          </Card>
         )}
       </View>
 
@@ -343,36 +432,89 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
             <Text style={styles.modalLabel}>Reason *</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Enter reason for refund"
+              placeholder="Enter refund reason"
               value={refundReason}
               onChangeText={setRefundReason}
-              multiline
+              placeholderTextColor={COLORS.textSecondary}
             />
 
-            <Text style={styles.modalLabel}>Notes (Optional)</Text>
+            <Text style={styles.modalLabel}>Notes</Text>
             <TextInput
-              style={styles.modalInput}
-              placeholder="Additional notes"
+              style={[styles.modalInput, styles.modalTextArea]}
+              placeholder="Optional notes"
               value={refundNotes}
               onChangeText={setRefundNotes}
+              placeholderTextColor={COLORS.textSecondary}
               multiline
+              numberOfLines={3}
             />
 
-            <View style={styles.modalButtons}>
+            <View style={styles.modalActions}>
               <Button
                 title="Cancel"
-                onPress={() => {
-                  setShowRefundModal(false);
-                  setRefundReason('');
-                  setRefundNotes('');
-                }}
+                onPress={() => setShowRefundModal(false)}
                 variant="outline"
                 style={styles.modalButton}
               />
               <Button
                 title="Refund"
                 onPress={handleRefund}
-                loading={processing}
+                disabled={processing}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Modal */}
+      <Modal
+        visible={showPaymentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Record Payment</Text>
+            <Text style={styles.modalAmount}>
+              Balance Due:{' '}
+              {formatCurrency(
+                (sale?.total_amount || 0) - (sale?.amount_paid || 0),
+              )}
+            </Text>
+
+            <Text style={styles.modalLabel}>Payment Amount *</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter payment amount"
+              value={paymentAmount}
+              onChangeText={setPaymentAmount}
+              keyboardType="decimal-pad"
+              placeholderTextColor={COLORS.textSecondary}
+            />
+
+            <Text style={styles.modalLabel}>Notes</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalTextArea]}
+              placeholder="Optional notes"
+              value={paymentNotes}
+              onChangeText={setPaymentNotes}
+              placeholderTextColor={COLORS.textSecondary}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                onPress={() => setShowPaymentModal(false)}
+                variant="outline"
+                style={styles.modalButton}
+              />
+              <Button
+                title="Record"
+                onPress={handlePayment}
                 disabled={processing}
                 style={styles.modalButton}
               />
@@ -550,9 +692,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     lineHeight: 22,
   },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginVertical: SPACING.md,
+  },
+  actionButton: {
+    flex: 1,
+  },
   refundButton: {
-    marginTop: SPACING.md,
     borderColor: COLORS.error,
+  },
+  paymentButton: {
+    marginTop: SPACING.md,
   },
   modalOverlay: {
     flex: 1,
@@ -594,13 +746,17 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text,
+    backgroundColor: COLORS.white,
+  },
+  modalTextArea: {
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  modalButtons: {
+  modalActions: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    justifyContent: 'space-between',
     marginTop: SPACING.lg,
+    gap: SPACING.sm,
   },
   modalButton: {
     flex: 1,
@@ -609,7 +765,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    paddingVertical: SPACING.md,
   },
   errorText: {
     fontSize: TYPOGRAPHY.fontSize.base,

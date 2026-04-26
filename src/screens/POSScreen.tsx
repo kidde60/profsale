@@ -19,6 +19,7 @@ import { Card, Button, Input, Loading } from '../components';
 import { productService } from '../services/productService';
 import { Product } from '../types';
 import { formatCurrency, formatStock } from '../utils/helpers';
+import { handleError, handleSuccess } from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 
@@ -83,8 +84,7 @@ const POSScreen: React.FC = () => {
         : (response.data as any)?.products || [];
       setProducts(productsData);
     } catch (error) {
-      console.error('Error fetching products:', error);
-      Alert.alert('Error', 'Failed to load products');
+      handleError(error, 'Failed to load products');
     } finally {
       setLoading(false);
     }
@@ -196,14 +196,25 @@ const POSScreen: React.FC = () => {
   };
 
   const renderCartItem = ({ item }: { item: CartItem }) => {
-    const stock =
-      item.product.current_stock ?? item.product.quantity_in_stock ?? 0;
+    const stock = parseFloat(
+      String(item.product.current_stock ?? item.product.quantity_in_stock ?? 0),
+    );
+    const isLowStock =
+      stock <=
+      (item.product.min_stock_level || item.product.reorder_level || 5);
     const isEditingPrice = editingPriceId === item.product.id;
 
     return (
       <Card style={styles.cartItem}>
         <View style={styles.cartItemHeader}>
-          <Text style={styles.cartItemName}>{item.product.name}</Text>
+          <View style={styles.cartItemTitleContainer}>
+            <Text style={styles.cartItemName}>{item.product.name}</Text>
+            {isLowStock && (
+              <View style={styles.lowStockBadge}>
+                <Text style={styles.lowStockText}>Low Stock</Text>
+              </View>
+            )}
+          </View>
           <TouchableOpacity
             onPress={() => removeFromCart(item.product.id)}
             style={styles.removeButton}
@@ -731,10 +742,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
-  cartItemContent: {
+  cartItemTitleContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: SPACING.sm,
+  },
+  lowStockBadge: {
+    backgroundColor: COLORS.warning,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  lowStockText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.white,
+    fontWeight: '600',
+  },
+  cartItemContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   cartItemName: {
     fontSize: TYPOGRAPHY.fontSize.base,

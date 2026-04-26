@@ -25,8 +25,14 @@ export interface CreateSaleData {
 }
 
 export interface RefundData {
-  refundReason: string;
-  refundMethod?: 'cash' | 'credit' | 'store_credit';
+  reason: string;
+  method: 'cash' | 'credit' | 'store_credit';
+  notes?: string;
+}
+
+export interface PaymentData {
+  amount: number;
+  payment_method?: string;
   notes?: string;
 }
 
@@ -60,6 +66,20 @@ export const salesService = {
   // Refund sale
   async refundSale(id: number, data: RefundData): Promise<any> {
     const response = await apiClient.post<ApiResponse<any>>(`/sales/${id}/refund`, data);
+    return response.data.data;
+  },
+
+  // Record payment for credit sale
+  async recordPayment(id: number, data: PaymentData): Promise<any> {
+    const response = await apiClient.post<ApiResponse<any>>(`/sales/${id}/payment`, data);
+    return response.data.data;
+  },
+
+  // Get refund reports
+  async getRefundReports(params?: { startDate?: string; endDate?: string }): Promise<any> {
+    const response = await apiClient.get<ApiResponse<any>>('/sales/reports/refunds', {
+      params,
+    });
     return response.data.data;
   },
 

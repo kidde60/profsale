@@ -499,6 +499,26 @@ CREATE TABLE business_settings (
   INDEX idx_business_id (business_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Payment records table for tracking credit sale payments
+CREATE TABLE payment_records (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  sale_id INT NOT NULL,
+  amount DECIMAL(12, 2) NOT NULL,
+  payment_method ENUM('cash', 'mobile_money', 'card', 'bank_transfer') DEFAULT 'cash',
+  recorded_by INT NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+  FOREIGN KEY (recorded_by) REFERENCES users(id),
+  INDEX idx_business_id (business_id),
+  INDEX idx_sale_id (sale_id),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Tax configurations table
 CREATE TABLE tax_configurations (
   id INT AUTO_INCREMENT PRIMARY KEY,

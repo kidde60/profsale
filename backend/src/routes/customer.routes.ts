@@ -69,6 +69,16 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
         c.id, c.name, c.phone, c.email, c.address, c.customer_type,
         c.total_purchases, c.total_orders, c.last_purchase_date,
         c.created_at, c.updated_at,
+        COALESCE(
+          (SELECT SUM(s.total_amount - COALESCE(s.amount_paid, 0))
+           FROM sales s
+           WHERE s.customer_id = c.id
+           AND s.payment_method = 'credit'
+           AND s.status != 'paid'
+           AND s.status != 'refunded'
+           AND s.status != 'cancelled'
+          ), 0
+        ) as credit_balance,
         CASE 
           WHEN c.last_purchase_date IS NULL THEN 'new'
           WHEN c.last_purchase_date < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 'inactive'

@@ -116,6 +116,25 @@ const CustomersScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const handlePayCredit = (customer: Customer) => {
+    Alert.alert(
+      'Pay Credit',
+      `Pay ${formatCurrency(customer.credit_balance || 0)} for ${
+        customer.name
+      }?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'View Sales',
+          onPress: () => {
+            // Navigate to sales filtered by this customer
+            navigation.navigate('Sales' as never);
+          },
+        },
+      ],
+    );
+  };
+
   const renderCustomer = ({ item }: { item: Customer }) => (
     <TouchableOpacity
       onPress={() =>
@@ -132,12 +151,28 @@ const CustomersScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.customerStats}>
               {item.total_orders} orders • {item.loyalty_points} points
             </Text>
+            {item.credit_balance && item.credit_balance > 0 && (
+              <View style={styles.creditBalanceContainer}>
+                <Text style={styles.creditBalanceLabel}>Credit Balance:</Text>
+                <Text style={styles.creditBalanceValue}>
+                  {formatCurrency(item.credit_balance)}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.customerAmount}>
             <Text style={styles.amountLabel}>Total Spent</Text>
             <Text style={styles.amountValue}>
               {formatCurrency(item.total_purchases)}
             </Text>
+            {item.credit_balance && item.credit_balance > 0 && (
+              <TouchableOpacity
+                style={styles.payButton}
+                onPress={() => handlePayCredit(item)}
+              >
+                <Text style={styles.payButtonText}>Pay</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Card>
@@ -284,6 +319,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.secondary,
     marginTop: SPACING.xs,
+  },
+  creditBalanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+    backgroundColor: COLORS.warning + '20',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 4,
+  },
+  creditBalanceLabel: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.textSecondary,
+    marginRight: SPACING.xs,
+  },
+  creditBalanceValue: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+    color: COLORS.warning,
+  },
+  payButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 4,
+    marginTop: SPACING.xs,
+  },
+  payButtonText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',
