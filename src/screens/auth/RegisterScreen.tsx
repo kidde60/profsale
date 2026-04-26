@@ -54,7 +54,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [businessType, setBusinessType] = useState('Retail');
+  const [businessType, setBusinessType] = useState('Retail Shop');
   const [loading, setLoading] = useState(false);
   const [showBusinessTypeModal, setShowBusinessTypeModal] = useState(false);
   const [searchText, setSearchText] = useState('');
