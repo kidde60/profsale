@@ -24,14 +24,16 @@ import { isValidEmail } from '../../utils/helpers';
 const { width, height } = Dimensions.get('window');
 
 const BUSINESS_TYPES = [
-  'Retail',
-  'Wholesale',
-  'Service',
-  'Restaurant',
-  'Manufacturing',
+  'Retail Shop',
+  'Wholesale/Trading',
+  'Hardware',
+  'Electronics',
+  'Accessories',
+  'Pharmacy',
+  'Supermarket/Grocery',
+  'Butchery',
   'E-commerce',
-  'Healthcare',
-  'Education',
+  'Agriculture Products',
   'Other',
 ];
 
@@ -83,16 +85,26 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       await register({
         firstName,
         lastName,
-        email,
         phone,
-        password,
+        email,
         businessName,
-        businessType: businessType.toLowerCase(),
+        businessType,
+        password,
       });
+      Alert.alert(
+        'Registration Successful',
+        'Please login with your credentials to continue',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Login'),
+          },
+        ],
+      );
     } catch (error: any) {
       Alert.alert(
         'Registration Failed',
-        error.response?.data?.message || 'Failed to register',
+        error.response?.data?.message || error.message || 'An error occurred',
       );
     } finally {
       setLoading(false);
