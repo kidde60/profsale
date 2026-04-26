@@ -52,6 +52,11 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [restockQuantity, setRestockQuantity] = useState('');
   const [restockReason, setRestockReason] = useState('');
   const [restocking, setRestocking] = useState(false);
+  const [showDamageModal, setShowDamageModal] = useState(false);
+  const [damageQuantity, setDamageQuantity] = useState('');
+  const [damageReason, setDamageReason] = useState('');
+  const [damageType, setDamageType] = useState<'damage' | 'expiry'>('damage');
+  const [recordingDamage, setRecordingDamage] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -69,6 +74,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const fetchProduct = useCallback(async () => {
     try {
       const data = await productService.getProduct(productId);
+      console.log('Fetched product data:', data);
       setProduct(data);
 
       // Populate form data
@@ -163,7 +169,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleRestock = async () => {
-    const quantity = parseInt(restockQuantity, 10);
+    const quantity = parseFloat(restockQuantity);
     if (!quantity || quantity <= 0) {
       Alert.alert('Error', 'Please enter a valid quantity');
       return;
@@ -185,6 +191,37 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       handleError(error, 'Failed to restock product');
     } finally {
       setRestocking(false);
+    }
+  };
+
+  const handleDamage = async () => {
+    const quantity = parseFloat(damageQuantity);
+    if (!quantity || quantity <= 0) {
+      Alert.alert('Error', 'Please enter a valid quantity');
+      return;
+    }
+
+    try {
+      setRecordingDamage(true);
+      await productService.recordDamage(productId, {
+        quantity,
+        reason: damageReason.trim() || '',
+        changeType: damageType,
+      });
+      handleSuccess(
+        `${
+          damageType === 'damage' ? 'Damaged' : 'Expired'
+        } products recorded successfully`,
+      );
+      setShowDamageModal(false);
+      setDamageQuantity('');
+      setDamageReason('');
+      setDamageType('damage');
+      await fetchProduct();
+    } catch (error) {
+      handleError(error, 'Failed to record damage/expiry');
+    } finally {
+      setRecordingDamage(false);
     }
   };
 
@@ -427,6 +464,14 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={styles.button}
               />
               <Button
+                title="Damage/Expiry"
+                onPress={() => setShowDamageModal(true)}
+                variant="outline"
+                style={styles.button}
+              />
+            </View>
+            <View style={styles.actionButtons}>
+              <Button
                 title="Edit"
                 onPress={() => setIsEditing(true)}
                 style={styles.button}
@@ -658,6 +703,99 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Damage/Expiry Modal */}
+      <Modal
+        visible={showDamageModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDamageModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Record Damage/Expiry</Text>
+            <Text style={styles.modalSubtitle}>{product.name}</Text>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Type</Text>
+              <View style={styles.typeButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    damageType === 'damage' && styles.typeButtonActive,
+                  ]}
+                  onPress={() => setDamageType('damage')}
+                >
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      damageType === 'damage' && styles.typeButtonTextActive,
+                    ]}
+                  >
+                    Damaged
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    damageType === 'expiry' && styles.typeButtonActive,
+                  ]}
+                  onPress={() => setDamageType('expiry')}
+                >
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      damageType === 'expiry' && styles.typeButtonTextActive,
+                    ]}
+                  >
+                    Expired
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Quantity</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter quantity"
+                value={damageQuantity}
+                onChangeText={setDamageQuantity}
+                keyboardType="numeric"
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Reason (Optional)</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder={`Reason for ${damageType}`}
+                value={damageReason}
+                onChangeText={setDamageReason}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                onPress={() => setShowDamageModal(false)}
+                variant="outline"
+                style={styles.modalButton}
+              />
+              <Button
+                title={recordingDamage ? 'Recording...' : 'Record'}
+                onPress={handleDamage}
+                disabled={recordingDamage}
+                variant="danger"
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -784,6 +922,32 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: '600',
   },
+  typeButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  typeButton: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+  },
+  typeButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  typeButtonText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  typeButtonTextActive: {
+    color: COLORS.white,
+  },
   profitMargin: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -859,7 +1023,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     padding: SPACING.md,
-    gap: SPACING.md,
+    gap: SPACING.xl,
   },
   button: {
     flex: 1,

@@ -27,6 +27,8 @@ import ReportsScreen from '../screens/ReportsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import StaffScreen from '../screens/StaffScreen';
 import AddStaffScreen from '../screens/AddStaffScreen';
+import RestockReportScreen from '../screens/RestockReportScreen';
+import StockRecordsScreen from '../screens/StockRecordsScreen';
 
 // Navigation types
 export type AuthStackParamList = {
@@ -67,6 +69,8 @@ export type RootStackParamList = {
   Staff: undefined;
   AddStaff: { staffId?: number } | undefined;
   EditStaff: { staffId: number };
+  RestockReport: undefined;
+  StockRecords: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -257,6 +261,16 @@ function RootNavigator() {
         name="EditStaff"
         component={AddStaffScreen as any}
         options={{ title: 'Edit Staff Member' }}
+      />
+      <RootStack.Screen
+        name="RestockReport"
+        component={RestockReportScreen}
+        options={{ title: 'Restock Report' }}
+      />
+      <RootStack.Screen
+        name="StockRecords"
+        component={StockRecordsScreen}
+        options={{ title: 'Stock Records' }}
       />
     </RootStack.Navigator>
   );

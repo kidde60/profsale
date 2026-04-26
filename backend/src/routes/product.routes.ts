@@ -712,7 +712,7 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
 
     // Get current product stock
     const [products] = await connection.execute<any[]>(
-      'SELECT id, current_stock, quantity_in_stock FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
+      'SELECT id, current_stock FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
       [productId, businessId],
     );
 
@@ -727,14 +727,17 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
     }
 
     const product = products[0];
-    const previousQuantity = product.current_stock || product.quantity_in_stock || 0;
+    console.log('Product from DB:', product);
+    const previousQuantity = parseFloat(product.current_stock) || 0;
     const newQuantity = previousQuantity + quantity;
+    console.log('Previous quantity:', previousQuantity, 'Quantity to add:', quantity, 'New quantity:', newQuantity);
 
     // Update product stock
-    await connection.execute(
-      'UPDATE products SET current_stock = ?, quantity_in_stock = ?, updated_at = NOW() WHERE id = ?',
-      [newQuantity, newQuantity, productId],
+    const [updateResult] = await connection.execute(
+      'UPDATE products SET current_stock = ?, updated_at = NOW() WHERE id = ?',
+      [newQuantity, productId],
     );
+    console.log('Stock update result:', updateResult);
 
     // Record stock change
     await connection.execute(
@@ -744,6 +747,7 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
     );
 
     await connection.commit();
+    console.log('Transaction committed successfully');
 
     res.json({
       success: true,
@@ -880,6 +884,185 @@ router.get('/stock-records/all', authenticateToken, async (req: Request, res: Re
     res.status(500).json({
       success: false,
       message: 'Failed to get stock records',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? (error as Error).message
+          : undefined,
+    });
+  }
+});
+
+// Record damaged or expired products
+router.post('/:id/damage', authenticateToken, async (req: Request, res: Response) => {
+  const productId = parseInt(req.params.id as string, 10);
+  const businessId = req.user?.businessId;
+  const userId = req.user?.id;
+  const { quantity, reason, changeType = 'damage' } = req.body;
+
+  if (!businessId || !userId) {
+    res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  if (!quantity || quantity <= 0) {
+    res.status(400).json({
+      success: false,
+      message: 'Quantity must be greater than 0',
+    });
+    return;
+  }
+
+  if (!['damage', 'expiry'].includes(changeType)) {
+    res.status(400).json({
+      success: false,
+      message: 'Invalid change type. Must be damage or expiry',
+    });
+    return;
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Get current product stock
+    const [products] = await connection.execute<any[]>(
+      'SELECT id, current_stock FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
+      [productId, businessId],
+    );
+
+    if (!products || products.length === 0) {
+      await connection.rollback();
+      res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+      return;
+    }
+
+    const product = products[0];
+    const previousQuantity = parseFloat(product.current_stock) || 0;
+    const quantityToRemove = parseFloat(quantity);
+
+    if (quantityToRemove > previousQuantity) {
+      await connection.rollback();
+      res.status(400).json({
+        success: false,
+        message: 'Cannot remove more than current stock',
+      });
+      return;
+    }
+
+    const newQuantity = previousQuantity - quantityToRemove;
+
+    // Update product stock
+    await connection.execute(
+      'UPDATE products SET current_stock = ?, updated_at = NOW() WHERE id = ?',
+      [newQuantity, productId],
+    );
+
+    // Record stock change
+    await connection.execute(
+      `INSERT INTO stock_records 
+        (business_id, product_id, quantity_change, previous_quantity, new_quantity, change_type, reason, performed_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [businessId, productId, -quantityToRemove, previousQuantity, newQuantity, changeType, reason, userId],
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: `${changeType === 'damage' ? 'Damaged' : 'Expired'} products recorded successfully`,
+      data: {
+        productId,
+        previousQuantity,
+        quantityRemoved: quantityToRemove,
+        newQuantity,
+      },
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error recording damaged/expired products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to record damaged/expired products',
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+// Get restock report with aggregated data
+router.get('/reports/restock', authenticateToken, async (req: Request, res: Response) => {
+  const businessId = req.user?.businessId;
+  const { startDate, endDate } = req.query;
+
+  if (!businessId) {
+    res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  try {
+    let dateFilter = '';
+    const params: any[] = [businessId];
+
+    if (startDate) {
+      dateFilter += ' AND sr.created_at >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      dateFilter += ' AND sr.created_at <= ?';
+      params.push(endDate);
+    }
+
+    // Most restocked products
+    const [mostRestocked] = await pool.execute<any[]>(
+      `SELECT 
+        p.id as product_id,
+        p.name as product_name,
+        COUNT(sr.id) as restock_count,
+        SUM(sr.quantity_change) as total_quantity_restocked,
+        MAX(sr.created_at) as last_restocked_at
+      FROM stock_records sr
+      JOIN products p ON sr.product_id = p.id
+      WHERE sr.business_id = ? AND sr.change_type = 'restock'${dateFilter}
+      GROUP BY p.id, p.name
+      ORDER BY restock_count DESC, total_quantity_restocked DESC
+      LIMIT 20`,
+      params,
+    );
+
+    // Restock summary stats
+    const [summary] = await pool.execute<any[]>(
+      `SELECT 
+        COUNT(DISTINCT sr.id) as total_restock_events,
+        COUNT(DISTINCT sr.product_id) as products_restocked,
+        SUM(sr.quantity_change) as total_quantity_restocked,
+        AVG(sr.quantity_change) as avg_restock_quantity
+      FROM stock_records sr
+      WHERE sr.business_id = ? AND sr.change_type = 'restock'${dateFilter}`,
+      params,
+    );
+
+    res.json({
+      success: true,
+      data: {
+        summary: summary[0],
+        mostRestocked,
+      },
+    });
+  } catch (error) {
+    console.error('Get restock report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get restock report',
       error:
         process.env.NODE_ENV === 'development'
           ? (error as Error).message
