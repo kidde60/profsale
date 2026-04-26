@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Image,
+  TouchableOpacity,
+  Platform,
+  PermissionsAndroid,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Card, Button, Input, Loading } from '../components';
 import { productService } from '../services/productService';
 import { Product } from '../types';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, formatStock } from '../utils/helpers';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import {
+  ImagePickerResponse,
+  launchImageLibrary,
+} from 'react-native-image-picker';
 
 type ProductDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -42,6 +56,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     minStockLevel: '',
     unit: '',
     categoryId: '',
+    productImage: '',
   });
 
   const fetchProduct = useCallback(async () => {
@@ -62,6 +77,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         minStockLevel: String(data.min_stock_level ?? data.reorder_level ?? ''),
         unit: data.unit || data.unit_of_measure || '',
         categoryId: data.category_id ? String(data.category_id) : '',
+        productImage: data.product_image || '',
       });
     } catch {
       Alert.alert('Error', 'Failed to load product');
@@ -89,6 +105,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         categoryId: formData.categoryId
           ? parseInt(formData.categoryId, 10)
           : undefined,
+        productImage: formData.productImage || undefined,
       };
 
       await productService.updateProduct(productId, updateData);
@@ -142,6 +159,77 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const requestGalleryPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          {
+            title: 'Gallery Permission',
+            message: 'App needs access to your gallery to pick images',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleImagePicker = async () => {
+    const hasPermission = await requestGalleryPermission();
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission Denied',
+        'Please grant gallery permission to select images',
+      );
+      return;
+    }
+
+    try {
+      const options = {
+        mediaType: 'photo' as const,
+        quality: 0.8 as any,
+        maxWidth: 800,
+        maxHeight: 800,
+      };
+
+      launchImageLibrary(options, (response: ImagePickerResponse) => {
+        if (response.didCancel) {
+          console.log('User cancelled image picker');
+          return;
+        }
+
+        if (response.errorCode) {
+          Alert.alert('Error', 'Failed to pick image');
+          return;
+        }
+
+        if (response.assets && response.assets[0]) {
+          const asset = response.assets[0];
+          if (asset.uri) {
+            updateField('productImage', asset.uri);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert(
+        'Error',
+        'Image picker is not available. Please rebuild the app.',
+      );
+    }
+  };
+
+  const removeImage = () => {
+    updateField('productImage', '');
+  };
+
   const profitMargin =
     formData.buyingPrice && formData.sellingPrice
       ? (
@@ -160,7 +248,9 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     return null;
   }
 
-  const stock = product.current_stock ?? product.quantity_in_stock ?? 0;
+  const stock = parseFloat(
+    String(product.current_stock ?? product.quantity_in_stock ?? 0),
+  );
   const unit = product.unit || product.unit_of_measure || 'units';
 
   return (
@@ -247,19 +337,28 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     stock === 0
                       ? styles.outOfStock
                       : stock <=
-                        (product.min_stock_level ?? product.reorder_level ?? 5)
+                        parseFloat(
+                          String(
+                            product.min_stock_level ??
+                              product.reorder_level ??
+                              5,
+                          ),
+                        )
                       ? styles.lowStock
                       : null,
                   ]}
                 >
-                  {stock} {unit}
+                  {formatStock(stock)} {unit}
                 </Text>
               </View>
 
               <View style={styles.infoRow}>
                 <Text style={styles.label}>Minimum Level:</Text>
                 <Text style={styles.value}>
-                  {product.min_stock_level ?? product.reorder_level ?? 5} {unit}
+                  {formatStock(
+                    product.min_stock_level ?? product.reorder_level ?? 5,
+                  )}{' '}
+                  {unit}
                 </Text>
               </View>
 
@@ -307,6 +406,31 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             {/* Edit Mode */}
             <Card style={styles.card}>
               <Text style={styles.sectionTitle}>Edit Product</Text>
+
+              <Text style={styles.imageLabel}>Product Image</Text>
+              {formData.productImage ? (
+                <View style={styles.imagePreviewContainer}>
+                  <Image
+                    source={{ uri: formData.productImage }}
+                    style={styles.imagePreview}
+                  />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={removeImage}
+                  >
+                    <Text style={styles.removeImageText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.imageUploadButton}
+                  onPress={handleImagePicker}
+                >
+                  <Text style={styles.imageUploadText}>
+                    + Add Product Image
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               <Input
                 label="Product Name *"
@@ -414,10 +538,10 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                         String(
                           product.current_stock ??
                             product.quantity_in_stock ??
-                            0,
+                            '',
                         ),
                         10,
-                      ) || 0,
+                      ),
                     ),
                     minStockLevel: String(
                       product.min_stock_level ?? product.reorder_level ?? '',
@@ -426,6 +550,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     categoryId: product.category_id
                       ? String(product.category_id)
                       : '',
+                    productImage: product.product_image || '',
                   });
                 }}
                 variant="outline"
@@ -466,15 +591,62 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
+  imageLabel: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  imagePreviewContainer: {
+    marginTop: SPACING.sm,
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 4,
+  },
+  removeImageText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+  },
+  imageUploadButton: {
+    marginTop: SPACING.sm,
+    borderWidth: 2,
+    borderColor: COLORS.border || '#E0E0E0',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+  },
+  imageUploadText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border || '#E0E0E0',
   },
   label: {
     fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: '500',
     color: COLORS.textSecondary,
     flex: 1,
   },
@@ -488,8 +660,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: '700',
     color: COLORS.primary,
-    flex: 2,
-    textAlign: 'right',
   },
   profitText: {
     color: COLORS.success,
@@ -504,9 +674,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusBadge: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: 12,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   statusOut: {
     backgroundColor: COLORS.error,
@@ -518,8 +688,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.success,
   },
   statusText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: '600',
   },
   profitMargin: {

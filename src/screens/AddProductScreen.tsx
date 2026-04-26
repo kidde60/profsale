@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Image,
+  TouchableOpacity,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  launchImageLibrary,
+  ImagePickerResponse,
+  Asset,
+} from 'react-native-image-picker';
 import { Input, Button, Card } from '../components';
 import { productService } from '../services/productService';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -26,6 +41,7 @@ interface ProductFormData {
   minStockLevel: string;
   unit: string;
   categoryId?: string;
+  productImage?: string;
 }
 
 const AddProductScreen: React.FC<Props> = ({ navigation }) => {
@@ -41,6 +57,7 @@ const AddProductScreen: React.FC<Props> = ({ navigation }) => {
     minStockLevel: '5',
     unit: 'pieces',
     categoryId: undefined,
+    productImage: undefined,
   });
 
   useEffect(() => {
@@ -60,6 +77,69 @@ const AddProductScreen: React.FC<Props> = ({ navigation }) => {
 
   const updateField = (field: keyof ProductFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const requestGalleryPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          {
+            title: 'Gallery Permission',
+            message: 'App needs access to your gallery to pick images',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleImagePicker = async () => {
+    const hasPermission = await requestGalleryPermission();
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission Denied',
+        'Please grant gallery permission to select images',
+      );
+      return;
+    }
+
+    const options = {
+      mediaType: 'photo' as const,
+      quality: 0.8 as any,
+      maxWidth: 800,
+      maxHeight: 800,
+    };
+
+    launchImageLibrary(options, (response: ImagePickerResponse) => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      }
+
+      if (response.errorCode) {
+        Alert.alert('Error', 'Failed to pick image');
+        return;
+      }
+
+      if (response.assets && response.assets[0]) {
+        const asset = response.assets[0];
+        if (asset.uri) {
+          setFormData(prev => ({ ...prev, productImage: asset.uri }));
+        }
+      }
+    });
+  };
+
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, productImage: undefined }));
   };
 
   const validateForm = (): boolean => {
@@ -114,6 +194,7 @@ const AddProductScreen: React.FC<Props> = ({ navigation }) => {
         categoryId: formData.categoryId
           ? parseInt(formData.categoryId, 10)
           : undefined,
+        productImage: formData.productImage,
       };
 
       await productService.createProduct(productData);
@@ -183,6 +264,29 @@ const AddProductScreen: React.FC<Props> = ({ navigation }) => {
             onChangeText={value => updateField('unit', value)}
             placeholder="e.g., pieces, kg, liters"
           />
+
+          <Text style={styles.imageLabel}>Product Image (Optional)</Text>
+          {formData.productImage ? (
+            <View style={styles.imagePreviewContainer}>
+              <Image
+                source={{ uri: formData.productImage }}
+                style={styles.imagePreview}
+              />
+              <TouchableOpacity
+                style={styles.removeImageButton}
+                onPress={removeImage}
+              >
+                <Text style={styles.removeImageText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.imageUploadButton}
+              onPress={handleImagePicker}
+            >
+              <Text style={styles.imageUploadText}>+ Add Product Image</Text>
+            </TouchableOpacity>
+          )}
         </Card>
 
         <Card style={styles.card}>
@@ -269,30 +373,88 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.xl,
   },
   card: {
     margin: SPACING.md,
     marginBottom: 0,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: SPACING.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.lg,
+  },
+  imageLabel: {
+    fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  imagePreviewContainer: {
+    marginTop: SPACING.sm,
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    resizeMode: 'cover',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+  },
+  removeImageText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+  },
+  imageUploadButton: {
+    marginTop: SPACING.sm,
+    borderWidth: 2,
+    borderColor: COLORS.border || '#E0E0E0',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+  },
+  imageUploadText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   profitMargin: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: SPACING.lg,
     backgroundColor: COLORS.background,
-    borderRadius: 8,
+    borderRadius: 12,
     marginTop: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border || '#E0E0E0',
   },
   profitLabel: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.textSecondary,
+    fontWeight: '500',
   },
   profitValue: {
     fontSize: TYPOGRAPHY.fontSize.xl,
@@ -308,6 +470,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: SPACING.md,
     gap: SPACING.md,
+    marginTop: SPACING.md,
   },
   button: {
     flex: 1,
