@@ -62,7 +62,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 
     const [staff] = await pool.execute<any[]>(
       `SELECT 
-        s.id, s.name, s.email, s.phone_number, s.role, s.is_active, s.created_at,
+        s.id, s.name, s.email, s.phone, s.role, s.is_active, s.created_at,
         GROUP_CONCAT(sp.permission_name) as permissions
       FROM staff_members s
       LEFT JOIN staff_permissions sp ON s.id = sp.staff_id AND sp.is_granted = TRUE
@@ -98,7 +98,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
 
     const [staff] = await pool.execute<any[]>(
       `SELECT 
-        s.id, s.name, s.email, s.phone_number, s.role, s.is_active, s.created_at,
+        s.id, s.name, s.email, s.phone, s.role, s.is_active, s.created_at,
         GROUP_CONCAT(sp.permission_name) as permissions
       FROM staff_members s
       LEFT JOIN staff_permissions sp ON s.id = sp.staff_id AND sp.is_granted = TRUE
@@ -137,7 +137,7 @@ router.post(
     try {
       const businessId = (req as any).user.businessId;
       const createdBy = (req as any).user.id;
-      const { name, email, phone_number, role, permissions, password } =
+      const { name, email, phone, role, permissions, password } =
         req.body;
 
       // Validation
@@ -193,13 +193,13 @@ router.post(
       // Create staff member
       const [result] = await pool.execute<any>(
         `INSERT INTO staff_members 
-        (business_id, name, email, phone_number, password_hash, role, created_by)
+        (business_id, name, email, phone, password_hash, role, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           businessId,
           name,
           email,
-          phone_number || null,
+          phone || null,
           hashedPassword,
           role || 'cashier',
           createdBy,
@@ -245,7 +245,7 @@ router.post(
           id: staffId,
           name,
           email,
-          phone_number,
+          phone,
           role,
           permissions,
         },
@@ -269,7 +269,7 @@ router.put(
     try {
       const businessId = (req as any).user.businessId;
       const staffId = parseInt(req.params.id as string, 10);
-      const { name, email, phone_number, role, permissions, is_active } =
+      const { name, email, phone, role, permissions, is_active } =
         req.body;
 
       // Check if staff exists
@@ -288,12 +288,12 @@ router.put(
       // Update staff member
       await pool.execute(
         `UPDATE staff_members 
-      SET name = ?, email = ?, phone_number = ?, role = ?, is_active = ?
+      SET name = ?, email = ?, phone = ?, role = ?, is_active = ?
       WHERE id = ? AND business_id = ?`,
         [
           name,
           email,
-          phone_number || null,
+          phone || null,
           role,
           is_active !== undefined ? is_active : true,
           staffId,
