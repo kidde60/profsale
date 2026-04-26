@@ -8,13 +8,14 @@ import {
   RefreshControl,
   Pressable,
   Alert,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, Loading, Input, Button } from '../components';
 import { productService } from '../services/productService';
 import { Product } from '../types';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, formatStock } from '../utils/helpers';
 import { canAccessFeature } from '../utils/permissions';
 import { useAuth } from '../context/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -22,7 +23,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 
 type ProductsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'MainTabs'
+  'Back'
 >;
 
 interface Props {
@@ -42,11 +43,18 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
     'create_product',
   );
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (searchTerm?: string) => {
     setLoading(true);
     try {
-      const data = await productService.getProducts();
-      setProducts(data.items);
+      const params: any = {};
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      const response = await productService.getProducts(params);
+      const productsData = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any)?.products || [];
+      setProducts(productsData);
     } catch {
       Alert.alert('Error', 'Failed to load products');
     } finally {
@@ -62,46 +70,69 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchProducts();
+    fetchProducts(search);
   };
 
   const renderProduct = ({ item }: { item: Product }) => {
-    const stock = item.current_stock ?? item.quantity_in_stock ?? 0;
+    const stock = parseFloat(
+      String(item.current_stock ?? item.quantity_in_stock ?? 0),
+    );
     const unit = item.unit || item.unit_of_measure || 'units';
-    const minStock = item.min_stock_level ?? item.reorder_level ?? 5;
+    const minStock = parseFloat(
+      String(item.min_stock_level ?? item.reorder_level ?? 5),
+    );
 
     return (
       <TouchableOpacity
         onPress={() =>
           navigation.navigate('ProductDetail', { productId: item.id })
         }
+        activeOpacity={0.7}
       >
-        <Card>
-          <View style={styles.productCard}>
-            <View style={styles.productInfo}>
-              <Text style={styles.productName}>{item.name}</Text>
-              {(item.sku || item.barcode) && (
-                <Text style={styles.productSku}>
-                  {item.sku ? `SKU: ${item.sku}` : `Barcode: ${item.barcode}`}
-                </Text>
-              )}
-              <Text style={styles.productStock}>
-                Stock: {stock} {unit}
+        <View style={styles.productCard}>
+          {item.product_image && (
+            <Image
+              source={{ uri: item.product_image }}
+              style={styles.productImage}
+            />
+          )}
+          <View
+            style={[
+              styles.productInfo,
+              !item.product_image && styles.productInfoFull,
+            ]}
+          >
+            <Text style={styles.productName} numberOfLines={2}>
+              {item.name}
+            </Text>
+            {(item.sku || item.barcode) && (
+              <Text style={styles.productSku}>
+                {item.sku ? `SKU: ${item.sku}` : `Barcode: ${item.barcode}`}
               </Text>
-            </View>
-            <View style={styles.productPrice}>
-              <Text style={styles.priceLabel}>Price</Text>
-              <Text style={styles.priceValue}>
-                {formatCurrency(item.selling_price)}
+            )}
+            <View style={styles.stockContainer}>
+              <Text style={styles.stockLabel}>Stock:</Text>
+              <Text
+                style={[
+                  styles.stockValue,
+                  stock <= minStock && styles.stockLow,
+                ]}
+              >
+                {formatStock(stock)} {unit}
               </Text>
-              {stock <= minStock && (
-                <View style={styles.lowStockBadge}>
-                  <Text style={styles.lowStockText}>Low Stock</Text>
-                </View>
-              )}
             </View>
           </View>
-        </Card>
+          <View style={styles.productPrice}>
+            <Text style={styles.priceValue}>
+              {formatCurrency(item.selling_price)}
+            </Text>
+            {stock <= minStock && (
+              <View style={styles.lowStockBadge}>
+                <Text style={styles.lowStockText}>Low Stock</Text>
+              </View>
+            )}
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -112,14 +143,43 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Products</Text>
+        </View>
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{products.length}</Text>
+            <Text style={styles.statLabel}>Total</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>
+              {
+                products.filter(p => {
+                  const stock = parseFloat(
+                    String(p.current_stock ?? p.quantity_in_stock ?? 0),
+                  );
+                  const minStock = parseFloat(
+                    String(p.min_stock_level ?? p.reorder_level ?? 5),
+                  );
+                  return stock <= minStock;
+                }).length
+              }
+            </Text>
+            <Text style={styles.statLabel}>Low Stock</Text>
+          </View>
+        </View>
+      </View>
+
       <View style={styles.searchContainer}>
         <Input
           value={search}
-          onChangeText={setSearch}
+          onChangeText={text => {
+            setSearch(text);
+            fetchProducts(text);
+          }}
           placeholder="Search products..."
-          onSubmitEditing={fetchProducts}
         />
-        <Button title="Search" onPress={fetchProducts} size="small" />
       </View>
 
       <FlatList
@@ -131,7 +191,13 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
         }
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No products found</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>📦</Text>
+            <Text style={styles.emptyText}>No products found</Text>
+            <Text style={styles.emptySubtext}>
+              Add your first product to get started
+            </Text>
+          </View>
         }
       />
 
@@ -152,23 +218,99 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  header: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border || '#E0E0E0',
+  },
+  headerContent: {
+    marginBottom: SPACING.md,
+  },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  statItem: {
+    backgroundColor: COLORS.background,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border || '#E0E0E0',
+  },
+  statValue: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  statLabel: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
   searchContainer: {
     padding: SPACING.md,
     backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border || '#E0E0E0',
   },
   list: {
     padding: SPACING.md,
   },
   productCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: SPACING.md,
+    resizeMode: 'cover',
+  },
+  productImagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: SPACING.md,
+    backgroundColor: COLORS.border || '#E0E0E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 32,
   },
   productInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  productInfoFull: {
     flex: 1,
   },
   productName: {
     fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: SPACING.xs,
   },
@@ -177,12 +319,26 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
-  productStock: {
+  stockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stockLabel: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.textSecondary,
+    marginRight: SPACING.xs,
+  },
+  stockValue: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  stockLow: {
+    color: COLORS.error,
   },
   productPrice: {
     alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   priceLabel: {
     fontSize: TYPOGRAPHY.fontSize.xs,
@@ -192,13 +348,12 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: '700',
     color: COLORS.primary,
-    marginTop: SPACING.xs,
   },
   lowStockBadge: {
     backgroundColor: COLORS.warning,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 4,
+    borderRadius: 6,
     marginTop: SPACING.xs,
   },
   lowStockText: {
@@ -206,11 +361,26 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '600',
   },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING['3xl'],
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: SPACING.md,
+  },
   emptyText: {
+    textAlign: 'center',
+    color: COLORS.text,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: '600',
+    marginBottom: SPACING.xs,
+  },
+  emptySubtext: {
     textAlign: 'center',
     color: COLORS.textSecondary,
     fontSize: TYPOGRAPHY.fontSize.base,
-    marginTop: SPACING.xl,
   },
   fab: {
     position: 'absolute',
@@ -222,15 +392,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    elevation: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
   fabPressed: {
     backgroundColor: COLORS.primaryDark || '#1e40af',
-    elevation: 2,
+    elevation: 4,
   },
   fabText: {
     fontSize: 28,

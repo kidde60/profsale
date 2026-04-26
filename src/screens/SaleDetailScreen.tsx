@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Modal,
+  TextInput,
+} from 'react-native';
 import { RouteProp } from '@react-navigation/native';
-import { Card, Loading } from '../components';
+import { Card, Loading, Button } from '../components';
 import { salesService } from '../services/salesService';
 import { Sale } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
@@ -18,6 +26,10 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
   const { saleId } = route.params;
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundNotes, setRefundNotes] = useState('');
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     fetchSaleDetails();
@@ -35,6 +47,53 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefund = async () => {
+    if (!refundReason.trim()) {
+      Alert.alert('Error', 'Please provide a reason for the refund');
+      return;
+    }
+
+    Alert.alert(
+      'Confirm Refund',
+      `Are you sure you want to refund this sale for ${formatCurrency(
+        sale?.total_amount || 0,
+      )}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Refund',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setProcessing(true);
+              await salesService.refundSale(saleId, {
+                refundReason: refundReason.trim(),
+                refundMethod: 'cash',
+                notes: refundNotes.trim() || undefined,
+              });
+              Alert.alert('Success', 'Sale refunded successfully', [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    setShowRefundModal(false);
+                    setRefundReason('');
+                    setRefundNotes('');
+                    fetchSaleDetails();
+                  },
+                },
+              ]);
+            } catch (error) {
+              console.error('Error refunding sale:', error);
+              Alert.alert('Error', 'Failed to refund sale');
+            } finally {
+              setProcessing(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   if (loading) {
@@ -65,10 +124,12 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
                 styles.statusBadge,
                 sale.status === 'completed' && styles.statusCompleted,
                 sale.status === 'cancelled' && styles.statusCancelled,
+                sale.status === 'refunded' && styles.statusRefunded,
               ]}
             >
               <Text style={styles.statusText}>
-                {sale.status || sale.payment_status}
+                {sale.status?.toUpperCase() ||
+                  sale.payment_status?.toUpperCase()}
               </Text>
             </View>
           </View>
@@ -132,6 +193,47 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
         <Card>
           <Text style={styles.sectionTitle}>Payment</Text>
 
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Payment Method:</Text>
+            <View
+              style={[
+                styles.paymentMethodBadge,
+                sale.payment_method === 'credit' && styles.creditBadge,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.paymentMethodText,
+                  sale.payment_method === 'credit' && styles.creditText,
+                ]}
+              >
+                {sale.payment_method
+                  ? sale.payment_method === 'credit'
+                    ? 'Credit'
+                    : sale.payment_method.replace('_', ' ').toUpperCase()
+                  : 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Payment Status:</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                sale.payment_status === 'paid' && styles.statusPaid,
+                sale.payment_status === 'pending' && styles.statusPending,
+                sale.payment_status === 'refunded' && styles.statusRefunded,
+              ]}
+            >
+              <Text style={styles.statusText}>
+                {sale.payment_status?.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
           {sale.subtotal !== undefined && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal:</Text>
@@ -166,16 +268,25 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
             </Text>
           </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Payment Method:</Text>
-            <Text style={[styles.value, styles.paymentMethod]}>
-              {sale.payment_method
-                ? sale.payment_method.replace('_', ' ').toUpperCase()
-                : 'N/A'}
-            </Text>
-          </View>
+          {sale.payment_method === 'credit' && (
+            <>
+              <View style={styles.divider} />
+              {sale.amount_paid && sale.amount_paid > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Amount Paid:</Text>
+                  <Text style={[styles.summaryValue, styles.paidText]}>
+                    {formatCurrency(sale.amount_paid)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Balance Due:</Text>
+                <Text style={[styles.summaryValue, styles.dueText]}>
+                  {formatCurrency(sale.total_amount - (sale.amount_paid || 0))}
+                </Text>
+              </View>
+            </>
+          )}
 
           {sale.amount_paid !== undefined && (
             <View style={styles.infoRow}>
@@ -203,7 +314,72 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
             <Text style={styles.notesText}>{sale.notes}</Text>
           </Card>
         )}
+
+        {/* Refund Button */}
+        {sale.status !== 'refunded' && sale.status !== 'cancelled' && (
+          <Button
+            title="Refund Sale"
+            onPress={() => setShowRefundModal(true)}
+            variant="outline"
+            style={styles.refundButton}
+          />
+        )}
       </View>
+
+      {/* Refund Modal */}
+      <Modal
+        visible={showRefundModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRefundModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Refund Sale</Text>
+            <Text style={styles.modalAmount}>
+              Refund Amount: {formatCurrency(sale?.total_amount || 0)}
+            </Text>
+
+            <Text style={styles.modalLabel}>Reason *</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter reason for refund"
+              value={refundReason}
+              onChangeText={setRefundReason}
+              multiline
+            />
+
+            <Text style={styles.modalLabel}>Notes (Optional)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Additional notes"
+              value={refundNotes}
+              onChangeText={setRefundNotes}
+              multiline
+            />
+
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  setShowRefundModal(false);
+                  setRefundReason('');
+                  setRefundNotes('');
+                }}
+                variant="outline"
+                style={styles.modalButton}
+              />
+              <Button
+                title="Refund"
+                onPress={handleRefund}
+                loading={processing}
+                disabled={processing}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -243,11 +419,44 @@ const styles = StyleSheet.create({
   statusCancelled: {
     backgroundColor: COLORS.error,
   },
+  statusPaid: {
+    backgroundColor: COLORS.success,
+  },
+  statusPending: {
+    backgroundColor: COLORS.warning,
+  },
+  statusRefunded: {
+    backgroundColor: COLORS.error,
+  },
   statusText: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.white,
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  paymentMethodBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primary + '20',
+  },
+  creditBadge: {
+    backgroundColor: COLORS.warning + '30',
+  },
+  paymentMethodText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  creditText: {
+    color: COLORS.warning,
+  },
+  paidText: {
+    color: COLORS.success,
+  },
+  dueText: {
+    color: COLORS.error,
+    fontWeight: '700',
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -340,6 +549,61 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text,
     lineHeight: 22,
+  },
+  refundButton: {
+    marginTop: SPACING.md,
+    borderColor: COLORS.error,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  modalContent: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.md,
+  },
+  modalAmount: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginBottom: SPACING.lg,
+  },
+  modalLabel: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+    marginTop: SPACING.md,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.lg,
+  },
+  modalButton: {
+    flex: 1,
   },
   emptyText: {
     fontSize: TYPOGRAPHY.fontSize.base,
