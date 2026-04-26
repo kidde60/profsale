@@ -22,6 +22,7 @@ import {
   RootStackParamList,
   MainTabParamList,
 } from '../navigation/AppNavigator';
+import { useAuth } from '../context/AuthContext';
 
 type DashboardScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Dashboard'>,
@@ -33,6 +34,7 @@ interface Props {
 }
 
 const DashboardScreen: React.FC<Props> = ({ navigation }) => {
+  const { isAuthenticated } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,6 +59,9 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const fetchSubscription = async () => {
+    if (!isAuthenticated) {
+      return;
+    }
     try {
       const sub = await subscriptionService.getCurrentSubscription();
       setSubscription(sub);

@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -17,8 +18,9 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { Card, Button, Input, Loading } from '../components';
 import { productService } from '../services/productService';
 import { Product } from '../types';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, formatStock } from '../utils/helpers';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
 
 interface CartItem {
   product: Product;
@@ -43,6 +45,10 @@ const POSScreen: React.FC = () => {
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
   const [tempPrice, setTempPrice] = useState('');
+  const [editingQuantityId, setEditingQuantityId] = useState<number | null>(
+    null,
+  );
+  const [tempQuantity, setTempQuantity] = useState('');
 
   useEffect(() => {
     fetchProducts();
@@ -137,6 +143,15 @@ const POSScreen: React.FC = () => {
         return item;
       }),
     );
+  };
+
+  const handleQuantityUpdate = (productId: number, value: string) => {
+    const quantity = parseFloat(value);
+    if (!isNaN(quantity) && quantity > 0) {
+      updateQuantity(productId, quantity);
+    }
+    setEditingQuantityId(null);
+    setTempQuantity('');
   };
 
   const removeFromCart = (productId: number) => {
@@ -251,22 +266,56 @@ const POSScreen: React.FC = () => {
           <View style={styles.quantityControls}>
             <TouchableOpacity
               style={styles.quantityButton}
-              onPress={() => updateQuantity(item.product.id, item.quantity - 1)}
+              onPress={() =>
+                updateQuantity(
+                  item.product.id,
+                  Math.max(0.25, item.quantity - 0.25),
+                )
+              }
             >
-              <Text style={styles.quantityButtonText}>-</Text>
+              <Text style={styles.quantityButtonText}>-0.25</Text>
             </TouchableOpacity>
 
-            <Text style={styles.quantity}>{item.quantity}</Text>
+            {editingQuantityId === item.product.id ? (
+              <TextInput
+                style={styles.quantityInput}
+                value={tempQuantity}
+                onChangeText={setTempQuantity}
+                onSubmitEditing={() =>
+                  handleQuantityUpdate(item.product.id, tempQuantity)
+                }
+                onBlur={() => {
+                  if (editingQuantityId === item.product.id) {
+                    handleQuantityUpdate(item.product.id, tempQuantity);
+                  }
+                }}
+                keyboardType="decimal-pad"
+                autoFocus
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  setEditingQuantityId(item.product.id);
+                  setTempQuantity(String(item.quantity));
+                }}
+              >
+                <Text style={styles.quantity}>
+                  {formatStock(item.quantity)}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[
                 styles.quantityButton,
                 item.quantity >= stock && styles.quantityButtonDisabled,
               ]}
-              onPress={() => updateQuantity(item.product.id, item.quantity + 1)}
+              onPress={() =>
+                updateQuantity(item.product.id, item.quantity + 0.25)
+              }
               disabled={item.quantity >= stock}
             >
-              <Text style={styles.quantityButtonText}>+</Text>
+              <Text style={styles.quantityButtonText}>+0.25</Text>
             </TouchableOpacity>
           </View>
 
@@ -281,7 +330,9 @@ const POSScreen: React.FC = () => {
   };
 
   const renderProductItem = ({ item }: { item: Product }) => {
-    const stock = item.current_stock ?? item.quantity_in_stock ?? 0;
+    const stock = parseFloat(
+      String(item.current_stock ?? item.quantity_in_stock ?? 0),
+    );
     const cartItem = cart.find(c => c.product.id === item.id);
     const inCart = !!cartItem;
 
@@ -313,7 +364,15 @@ const POSScreen: React.FC = () => {
               </TouchableOpacity>
             </>
           )}
-          <Text style={styles.productName}>{item.name}</Text>
+          {item.product_image && (
+            <Image
+              source={{ uri: item.product_image }}
+              style={styles.productImage}
+            />
+          )}
+          <Text style={styles.productName} numberOfLines={2}>
+            {item.name}
+          </Text>
           <View style={styles.productDetails}>
             <Text style={styles.productPrice}>
               {formatCurrency(item.selling_price)}
@@ -324,7 +383,7 @@ const POSScreen: React.FC = () => {
                 stock <= 0 ? styles.outOfStock : null,
               ]}
             >
-              Stock: {stock}
+              Stock: {formatStock(stock)}
             </Text>
           </View>
         </TouchableOpacity>
@@ -339,6 +398,30 @@ const POSScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Point of Sale</Text>
+            <Text style={styles.headerSubtitle}>
+              {products.length} products available
+            </Text>
+          </View>
+          {cart.length > 0 && (
+            <View style={styles.cartStats}>
+              <View style={styles.cartStatItem}>
+                <Text style={styles.cartStatValue}>{cart.length}</Text>
+                <Text style={styles.cartStatLabel}>Items</Text>
+              </View>
+              <View style={styles.cartStatItem}>
+                <Text style={styles.cartStatValue}>
+                  {formatCurrency(calculateTotal())}
+                </Text>
+                <Text style={styles.cartStatLabel}>Total</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* Search Bar */}
         <View style={styles.searchSection}>
           <Input
@@ -441,11 +524,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border || '#E0E0E0',
+  },
+  headerContent: {
+    marginBottom: SPACING.md,
+  },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.fontSize['2xl'],
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  cartStats: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  cartStatItem: {
+    backgroundColor: COLORS.background,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border || '#E0E0E0',
+  },
+  cartStatValue: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  cartStatLabel: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
   searchSection: {
     padding: SPACING.md,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.border || '#E0E0E0',
   },
   searchInput: {
     marginBottom: 0,
@@ -470,12 +596,26 @@ const styles = StyleSheet.create({
   },
   productItem: {
     flex: 1,
-    marginBottom: SPACING.sm,
-    minHeight: 100,
+    marginBottom: SPACING.md,
+    minHeight: 180,
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderRadius: 16,
   },
   productItemTouchable: {
     flex: 1,
+    padding: SPACING.sm,
+  },
+  productImage: {
+    width: '100%',
+    height: 100,
+    borderRadius: 8,
+    resizeMode: 'cover',
+    marginBottom: SPACING.sm,
   },
   productItemInCart: {
     borderWidth: 2,
@@ -525,11 +665,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xl * 3,
+    paddingVertical: SPACING['3xl'],
   },
   emptyProductsText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    color: COLORS.text,
+    fontWeight: '600',
+    marginBottom: SPACING.xs,
   },
   productName: {
     fontSize: TYPOGRAPHY.fontSize.base,
@@ -538,9 +680,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   productDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: SPACING.xs,
   },
   productPrice: {
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -650,7 +791,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   quantityButton: {
-    width: 32,
+    minWidth: 70,
     height: 32,
     borderRadius: 16,
     backgroundColor: COLORS.primary,
@@ -658,19 +799,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   quantityButtonDisabled: {
-    backgroundColor: COLORS.disabled,
+    opacity: 0.5,
   },
   quantityButtonText: {
-    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.white,
     fontWeight: '600',
-  },
-  quantity: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: '600',
-    color: COLORS.text,
-    minWidth: 30,
-    textAlign: 'center',
   },
   cartItemTotal: {
     alignItems: 'flex-end',
@@ -678,8 +812,25 @@ const styles = StyleSheet.create({
   cartItemTotalText: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: '700',
+    color: COLORS.primary,
+  },
+  quantity: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
     color: COLORS.text,
-    marginBottom: SPACING.xs,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  quantityInput: {
+    width: 80,
+    height: 32,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    paddingHorizontal: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text,
+    textAlign: 'center',
   },
   removeButton: {
     width: 24,
