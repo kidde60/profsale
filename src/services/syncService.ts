@@ -1,7 +1,10 @@
 // services/syncService.ts - Offline-first synchronization service
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './api';
-import logger from '../utils/logger';
+import { localStorageService } from './localStorageService';
+import { productService } from './productService';
+import { networkService } from './networkService';
+import { Alert } from 'react-native';
 
 export interface SyncChange {
   type: 'create' | 'update' | 'delete';
@@ -19,7 +22,27 @@ class SyncService {
   async initialize() {
     this.deviceId = await this.getOrCreateDeviceId();
     this.lastSyncTimestamp = await AsyncStorage.getItem('lastSyncTimestamp');
-    logger.info('Sync service initialized', { deviceId: this.deviceId });
+    console.log('Sync service initialized', { deviceId: this.deviceId });
+    
+    // Perform initial sync of products
+    await this.initialProductSync();
+  }
+
+  private async initialProductSync() {
+    try {
+      if (networkService.isNetworkAvailable()) {
+        const response = await productService.getProducts();
+        const products = response?.data || response || [];
+        if (Array.isArray(products)) {
+          await localStorageService.cacheProducts(products);
+          console.log('Products cached locally');
+        } else {
+          console.warn('Products response is not an array:', products);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to cache products:', error);
+    }
   }
 
   private async getOrCreateDeviceId(): Promise<string> {
@@ -36,9 +59,9 @@ class SyncService {
       const changes = await this.getPendingChanges();
       changes.push(change);
       await AsyncStorage.setItem('pendingChanges', JSON.stringify(changes));
-      logger.info('Change queued for sync', { type: change.type, entity: change.entity });
+      console.log('Change queued for sync', { type: change.type, entity: change.entity });
     } catch (error) {
-      logger.error('Failed to queue change', { error });
+      console.error('Failed to queue change', { error });
     }
   }
 
@@ -47,27 +70,36 @@ class SyncService {
       const changes = await AsyncStorage.getItem('pendingChanges');
       return changes ? JSON.parse(changes) : [];
     } catch (error) {
-      logger.error('Failed to get pending changes', { error });
+      console.error('Failed to get pending changes', { error });
       return [];
     }
   }
 
   async syncNow(): Promise<{ success: boolean; synced: number; conflicts: number }> {
     if (this.isSyncing) {
-      logger.warn('Sync already in progress');
+      console.warn('Sync already in progress');
+      return { success: false, synced: 0, conflicts: 0 };
+    }
+
+    if (!networkService.isNetworkAvailable()) {
+      console.warn('Cannot sync: offline');
       return { success: false, synced: 0, conflicts: 0 };
     }
 
     this.isSyncing = true;
 
     try {
+      // Sync local product changes
+      await this.syncLocalProducts();
+      
+      // Sync pending API changes
       const pendingChanges = await this.getPendingChanges();
       if (pendingChanges.length === 0) {
-        logger.info('No pending changes to sync');
+        console.info('No pending changes to sync');
         return { success: true, synced: 0, conflicts: 0 };
       }
 
-      logger.info('Starting sync', { pendingChanges: pendingChanges.length });
+      console.info('Starting sync', { pendingChanges: pendingChanges.length });
 
       const syncData = {
         deviceId: this.deviceId,
@@ -94,7 +126,7 @@ class SyncService {
         await AsyncStorage.setItem('lastSyncTimestamp', syncTimestamp);
         this.lastSyncTimestamp = syncTimestamp;
 
-        logger.info('Sync completed', {
+        console.info('Sync completed', {
           synced: syncedCount,
           conflicts: syncResults.conflicts.length,
         });
@@ -108,17 +140,118 @@ class SyncService {
 
       return { success: false, synced: 0, conflicts: 0 };
     } catch (error) {
-      logger.error('Sync failed', { error });
+      console.error('Sync failed', { error });
       return { success: false, synced: 0, conflicts: 0 };
     } finally {
       this.isSyncing = false;
     }
   }
 
+  private async syncLocalProducts() {
+    console.log('Syncing local product changes...');
+    const pendingChanges = await localStorageService.getPendingChanges();
+    const productChanges = pendingChanges.filter(c => c.type === 'product');
+
+    if (productChanges.length === 0) {
+      console.log('No local product changes to sync');
+      return;
+    }
+
+    const sortedChanges = productChanges.sort((a, b) => a.timestamp - b.timestamp);
+
+    for (const change of sortedChanges) {
+      try {
+        if (change.action === 'create') {
+          await this.syncCreateProduct(change);
+        } else if (change.action === 'update') {
+          await this.syncUpdateProduct(change);
+        } else if (change.action === 'delete') {
+          await this.syncDeleteProduct(change);
+        }
+
+        await localStorageService.markAsSynced('product', change.id);
+      } catch (error) {
+        console.error(`Failed to sync change: ${change.action} for product ${change.id}`, error);
+      }
+    }
+
+    await localStorageService.clearPendingChanges();
+    await this.refreshLocalCache();
+    console.log('Local product sync completed');
+  }
+
+  private async syncCreateProduct(change: any) {
+    const localProduct = await localStorageService.getProduct(change.id);
+    if (!localProduct) return;
+
+    try {
+      const createdProduct = await productService.createProduct({
+        name: localProduct.name,
+        description: localProduct.description,
+        barcode: localProduct.barcode,
+        buying_price: localProduct.buying_price,
+        selling_price: localProduct.selling_price,
+        current_stock: localProduct.current_stock,
+        min_stock_level: localProduct.min_stock_level,
+        unit: localProduct.unit,
+        category_id: localProduct.category_id,
+      });
+
+      await localStorageService.updateLocalId(change.id, createdProduct.id);
+    } catch (error: any) {
+      if (error.response?.status === 409 || error.message?.includes('duplicate')) {
+        console.log('Product already exists on server, fetching...');
+        const response = await productService.getProducts();
+        const products = response.data || response;
+        const existingProduct = products.find((p: any) => p.barcode === localProduct.barcode);
+        if (existingProduct) {
+          await localStorageService.updateLocalId(change.id, existingProduct.id);
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  private async syncUpdateProduct(change: any) {
+    const localProduct = await localStorageService.getProduct(change.id);
+    if (!localProduct) return;
+
+    if (change.id > 0) {
+      await productService.updateProduct(localProduct.id, {
+        name: localProduct.name,
+        description: localProduct.description,
+        barcode: localProduct.barcode,
+        buying_price: localProduct.buying_price,
+        selling_price: localProduct.selling_price,
+        current_stock: localProduct.current_stock,
+        min_stock_level: localProduct.min_stock_level,
+        unit: localProduct.unit,
+        category_id: localProduct.category_id,
+      });
+    }
+  }
+
+  private async syncDeleteProduct(change: any) {
+    if (change.id > 0) {
+      await productService.deleteProduct(change.id);
+    }
+  }
+
+  private async refreshLocalCache() {
+    try {
+      const response = await productService.getProducts();
+      const products = response.data || response;
+      await localStorageService.cacheProducts(products);
+      console.log('Local cache refreshed');
+    } catch (error) {
+      console.error('Failed to refresh local cache:', error);
+    }
+  }
+
   private async processServerChanges(changes: any) {
-    // Store server changes in local storage for the app to process
     await AsyncStorage.setItem('serverChanges', JSON.stringify(changes));
-    logger.info('Server changes stored', { changesCount: Object.keys(changes).length });
+    console.info('Server changes stored', { changesCount: Object.keys(changes).length });
   }
 
   async getServerChanges(): Promise<any> {
@@ -126,7 +259,7 @@ class SyncService {
       const changes = await AsyncStorage.getItem('serverChanges');
       return changes ? JSON.parse(changes) : null;
     } catch (error) {
-      logger.error('Failed to get server changes', { error });
+      console.error('Failed to get server changes', { error });
       return null;
     }
   }
@@ -139,32 +272,32 @@ class SyncService {
     this.stopAutoSync();
     this.syncInterval = setInterval(() => {
       if (__DEV__) {
-        logger.debug('Auto-sync triggered');
+        console.debug('Auto-sync triggered');
       }
       this.syncNow();
     }, intervalMs) as unknown as NodeJS.Timeout;
-    logger.info('Auto-sync started', { interval: intervalMs });
+    console.info('Auto-sync started', { interval: intervalMs });
   }
 
   stopAutoSync() {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
-      logger.info('Auto-sync stopped');
+      console.info('Auto-sync stopped');
     }
   }
 
   async getSyncStatus(): Promise<{ lastSync: string | null; pendingChanges: number }> {
     const pendingChanges = await this.getPendingChanges();
+    const localChanges = await localStorageService.getPendingChanges();
     return {
       lastSync: this.lastSyncTimestamp,
-      pendingChanges: pendingChanges.length,
+      pendingChanges: pendingChanges.length + localChanges.length,
     };
   }
 
   isOnline(): boolean {
-    // In a real app, you'd use NetInfo to check network status
-    return true;
+    return networkService.isNetworkAvailable();
   }
 }
 

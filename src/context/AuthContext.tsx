@@ -9,6 +9,7 @@ import { setGlobalLogoutHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/authService';
 import subscriptionService from '../services/subscriptionService';
+import { syncService } from '../services/syncService';
 import { User, LoginCredentials, RegisterData } from '../types';
 
 interface AuthContextType {
@@ -80,6 +81,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           );
           // Don't fail login if subscription fetch fails
         }
+        // Initialize sync service
+        await syncService.initialize();
       }
     } catch (error) {
       throw error;

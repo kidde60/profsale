@@ -1,10 +1,16 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { Loading } from '../components';
+import { OfflineStatus } from '../components/OfflineStatus';
+import { COLORS } from '../constants/theme';
 
 // Import screens (we'll create these)
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -129,62 +135,73 @@ function MainTabNavigator() {
   };
 
   return (
-    <MainTab.Navigator
-      screenOptions={{
-        headerShown: true,
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
-      }}
-    >
-      {canAccess('dashboard') && (
-        <MainTab.Screen
-          name="Dashboard"
-          component={DashboardScreen}
-          options={{
-            title: 'Dashboard',
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📊</Text>,
-          }}
-        />
-      )}
-      {canAccess('products') && (
-        <MainTab.Screen
-          name="Products"
-          component={ProductsScreen}
-          options={{
-            title: 'Products',
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📦</Text>,
-          }}
-        />
-      )}
-      {canAccess('pos') && (
-        <MainTab.Screen
-          name="POS"
-          component={POSScreen}
-          options={{
-            title: 'Point of Sale',
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🛒</Text>,
-          }}
-        />
-      )}
-      {canAccess('sales') && (
-        <MainTab.Screen
-          name="Sales"
-          component={SalesScreen}
-          options={{
-            title: 'Sales',
-            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>💰</Text>,
-          }}
-        />
-      )}
-      <MainTab.Screen
-        name="More"
-        component={SettingsScreen}
-        options={{
-          title: 'More',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
+    <View style={{ flex: 1 }}>
+      <OfflineStatus />
+      <MainTab.Navigator
+        screenOptions={{
+          tabBarActiveTintColor: COLORS.primary,
+          tabBarInactiveTintColor: COLORS.textSecondary,
+          headerShown: false,
         }}
-      />
-    </MainTab.Navigator>
+      >
+        {canAccess('dashboard') && (
+          <MainTab.Screen
+            name="Dashboard"
+            component={DashboardScreen}
+            options={{
+              title: 'Dashboard',
+              tabBarIcon: ({ color }) => (
+                <Text style={{ fontSize: 24 }}>📊</Text>
+              ),
+            }}
+          />
+        )}
+        {canAccess('products') && (
+          <MainTab.Screen
+            name="Products"
+            component={ProductsScreen}
+            options={{
+              title: 'Products',
+              tabBarIcon: ({ color }) => (
+                <Text style={{ fontSize: 24 }}>📦</Text>
+              ),
+            }}
+          />
+        )}
+        {canAccess('pos') && (
+          <MainTab.Screen
+            name="POS"
+            component={POSScreen}
+            options={{
+              title: 'Point of Sale',
+              tabBarIcon: ({ color }) => (
+                <Text style={{ fontSize: 24 }}>🛒</Text>
+              ),
+            }}
+          />
+        )}
+        {canAccess('sales') && (
+          <MainTab.Screen
+            name="Sales"
+            component={SalesScreen}
+            options={{
+              title: 'Sales',
+              tabBarIcon: ({ color }) => (
+                <Text style={{ fontSize: 24 }}>💰</Text>
+              ),
+            }}
+          />
+        )}
+        <MainTab.Screen
+          name="More"
+          component={SettingsScreen}
+          options={{
+            title: 'More',
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>⚙️</Text>,
+          }}
+        />
+      </MainTab.Navigator>
+    </View>
   );
 }
 
@@ -276,6 +293,25 @@ function RootNavigator() {
   );
 }
 
+const styles = StyleSheet.create({
+  safeAreaWrapper: {
+    flex: 1,
+    backgroundColor: COLORS.background || '#fff',
+  },
+});
+
+// Wrapper component to add top safe area padding
+const SafeAreaWrapper: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.safeAreaWrapper, { paddingTop: insets.top }]}>
+      {children}
+    </View>
+  );
+};
+
 // Main App Navigator
 export function AppNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -285,8 +321,12 @@ export function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
-      {isAuthenticated ? <RootNavigator /> : <AuthNavigator />}
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <SafeAreaWrapper>
+        <NavigationContainer>
+          {isAuthenticated ? <RootNavigator /> : <AuthNavigator />}
+        </NavigationContainer>
+      </SafeAreaWrapper>
+    </SafeAreaProvider>
   );
 }

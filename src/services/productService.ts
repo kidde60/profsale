@@ -5,6 +5,8 @@ import {
   PaginatedResponse,
   PaginationParams,
 } from '../types';
+import { localStorageService } from './localStorageService';
+import { networkService } from './networkService';
 
 export const productService = {
   // Get all products with filters
@@ -49,7 +51,24 @@ export const productService = {
   },
 
   // Restock product
-  async restockProduct(id: number, quantity: number, reason?: string): Promise<any> {
+  async restockProduct(
+    id: number,
+    quantity: number,
+    reason?: string,
+  ): Promise<any> {
+    // If offline, update local storage
+    if (!networkService.isNetworkAvailable()) {
+      const localProduct = await localStorageService.getProduct(id);
+      if (localProduct) {
+        const currentStock = parseFloat(String(localProduct.current_stock || '0')) || 0;
+        const newStock = currentStock + quantity;
+        await localStorageService.updateProduct(id, { current_stock: newStock });
+        return { productId: id, previousQuantity: localProduct.current_stock, quantityAdded: quantity, newQuantity: newStock };
+      }
+      throw new Error('Product not found in local storage');
+    }
+
+    // If online, call API
     const response = await apiClient.post<ApiResponse<any>>(
       `/products/${id}/restock`,
       { quantity, reason },
@@ -97,6 +116,22 @@ export const productService = {
     reason: string;
     changeType?: 'damage' | 'expiry';
   }): Promise<any> {
+    // If offline, update local storage
+    if (!networkService.isNetworkAvailable()) {
+      const localProduct = await localStorageService.getProduct(productId);
+      if (localProduct) {
+        const currentStock = parseFloat(String(localProduct.current_stock || '0')) || 0;
+        const newStock = currentStock - data.quantity;
+        if (newStock < 0) {
+          throw new Error('Cannot remove more than current stock');
+        }
+        await localStorageService.updateProduct(productId, { current_stock: newStock });
+        return { productId, previousQuantity: localProduct.current_stock, quantityRemoved: data.quantity, newQuantity: newStock };
+      }
+      throw new Error('Product not found in local storage');
+    }
+
+    // If online, call API
     const response = await apiClient.post<ApiResponse<any>>(
       `/products/${productId}/damage`,
       data,
