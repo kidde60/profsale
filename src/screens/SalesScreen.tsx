@@ -17,7 +17,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 
 type SalesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'MainTabs'
+  'Back'
 >;
 
 interface Props {
@@ -52,38 +52,67 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
     fetchSales();
   };
 
-  const renderSale = ({ item }: { item: Sale }) => (
-    <TouchableOpacity
-      onPress={() => navigation.navigate('SaleDetail', { saleId: item.id })}
-    >
-      <Card>
-        <View style={styles.saleCard}>
-          <View style={styles.saleInfo}>
-            <Text style={styles.saleId}>
-              Sale #{item.sale_number || item.id}
-            </Text>
-            <Text style={styles.customerName}>
-              {item.customer_name || item.customer?.name || 'Walk-in Customer'}
-            </Text>
-            <Text style={styles.saleDate}>{formatDate(item.sale_date)}</Text>
-          </View>
-          <View style={styles.saleAmount}>
-            <Text style={styles.amountValue}>
-              {formatCurrency(item.total_amount)}
-            </Text>
-            <View
-              style={[
-                styles.statusBadge,
-                styles[`status${item.payment_status}`],
-              ]}
-            >
-              <Text style={styles.statusText}>{item.payment_status}</Text>
+  const renderSale = ({ item }: { item: Sale }) => {
+    const isCredit = item.payment_method === 'credit';
+    const balanceDue = item.total_amount - (item.amount_paid || 0);
+    const isRefunded =
+      item.status === 'refunded' || item.status === 'cancelled';
+
+    return (
+      <TouchableOpacity
+        onPress={() => navigation.navigate('SaleDetail', { saleId: item.id })}
+      >
+        <Card>
+          <View style={styles.saleCard}>
+            <View style={styles.saleInfo}>
+              <Text style={styles.saleId}>
+                Sale #{item.sale_number || item.id}
+              </Text>
+              <Text style={styles.customerName}>
+                {item.customer_name ||
+                  item.customer?.name ||
+                  'Walk-in Customer'}
+              </Text>
+              <Text style={styles.saleDate}>{formatDate(item.sale_date)}</Text>
+            </View>
+            <View style={styles.saleAmount}>
+              <View style={styles.paymentMethodBadge}>
+                <Text style={styles.paymentMethodText}>
+                  {isCredit ? 'Credit' : item.payment_method.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.amountValue}>
+                {formatCurrency(item.total_amount)}
+              </Text>
+              {isCredit && item.amount_paid && item.amount_paid > 0 && (
+                <Text style={styles.amountPaid}>
+                  Paid: {formatCurrency(item.amount_paid)}
+                </Text>
+              )}
+              {isCredit && balanceDue > 0 && (
+                <Text style={styles.balanceDue}>
+                  Due: {formatCurrency(balanceDue)}
+                </Text>
+              )}
+              <View
+                style={[
+                  styles.statusBadge,
+                  item.status === 'completed' && styles.statusCompleted,
+                  item.status === 'cancelled' && styles.statusCancelled,
+                  item.status === 'refunded' && styles.statusRefunded,
+                  item.status === 'pending' && styles.statusPending,
+                ]}
+              >
+                <Text style={styles.statusText}>
+                  {item.status?.toUpperCase()}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return <Loading message="Loading sales..." />;
@@ -136,6 +165,19 @@ const styles = StyleSheet.create({
   saleDate: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.textLight,
+    marginBottom: SPACING.xs,
+  },
+  paymentMethodBadge: {
+    backgroundColor: COLORS.primary + '20',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  paymentMethodText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   saleAmount: {
     alignItems: 'flex-end',
@@ -144,6 +186,16 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: '700',
     color: COLORS.primary,
+    marginBottom: SPACING.xs,
+  },
+  amountPaid: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.success,
+    marginBottom: 2,
+  },
+  balanceDue: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.error,
     marginBottom: SPACING.xs,
   },
   statusBadge: {
@@ -159,6 +211,18 @@ const styles = StyleSheet.create({
   },
   statusrefunded: {
     backgroundColor: COLORS.error,
+  },
+  statusRefunded: {
+    backgroundColor: COLORS.error,
+  },
+  statusCompleted: {
+    backgroundColor: COLORS.success,
+  },
+  statusCancelled: {
+    backgroundColor: COLORS.error,
+  },
+  statusPending: {
+    backgroundColor: COLORS.warning,
   },
   statusText: {
     fontSize: TYPOGRAPHY.fontSize.xs,
