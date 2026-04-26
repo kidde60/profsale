@@ -64,7 +64,7 @@ export const authenticateToken = async (
     if (userType === 'staff') {
       const [staff] = await pool.execute<any[]>(
         `SELECT 
-          s.id, s.email, s.phone_number as phone, s.name,
+          s.id, s.email, s.phone, s.name,
           s.business_id, s.role, s.is_active,
           b.business_name,
           GROUP_CONCAT(sp.permission_name) as permissions
@@ -156,11 +156,11 @@ export const authenticateToken = async (
       `SELECT 
         u.id, u.phone, u.email, u.first_name, u.last_name,
         b.id as business_id, b.business_name,
-        be.role, be.permissions, be.is_active as employee_active
+        bu.role, bu.permissions, bu.is_active as employee_active
       FROM users u
-      JOIN business_employees be ON u.id = be.user_id
-      JOIN businesses b ON be.business_id = b.id
-      WHERE u.id = ? AND u.is_active = TRUE AND be.is_active = TRUE`,
+      JOIN business_users bu ON u.id = bu.user_id
+      JOIN businesses b ON bu.business_id = b.id
+      WHERE u.id = ? AND u.is_active = TRUE AND bu.is_active = TRUE`,
       [decoded.userId],
     );
 

@@ -8,6 +8,7 @@ import React, {
 import { setGlobalLogoutHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/authService';
+import subscriptionService from '../services/subscriptionService';
 import { User, LoginCredentials, RegisterData } from '../types';
 
 interface AuthContextType {
@@ -37,6 +38,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     // No cleanup needed, as handler can be overwritten
   }, []);
 
+  // Force logout on mount to clear any stale auth data from production
+  useEffect(() => {
+    const forceLogout = async () => {
+      try {
+        await authService.logout();
+        setUser(null);
+        console.log('Force logout: Cleared stale auth data');
+      } catch (error) {
+        console.error('Error during force logout:', error);
+      }
+    };
+    forceLogout();
+  }, []);
+
   const loadUser = async () => {
     try {
       const storedUser = await authService.getStoredUser();
@@ -55,6 +70,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       const response = await authService.login(credentials);
       if (response.user) {
         setUser(response.user);
+        // Fetch current subscription after login
+        try {
+          await subscriptionService.getCurrentSubscription();
+        } catch (subscriptionError) {
+          console.error(
+            'Error fetching subscription after login:',
+            subscriptionError,
+          );
+          // Don't fail login if subscription fetch fails
+        }
       }
     } catch (error) {
       throw error;
