@@ -427,7 +427,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={styles.button}
               />
               <Button
-                title="Edit Product"
+                title="Edit"
                 onPress={() => setIsEditing(true)}
                 style={styles.button}
               />
