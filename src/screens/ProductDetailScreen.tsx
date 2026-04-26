@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   Platform,
   PermissionsAndroid,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,6 +19,7 @@ import { Card, Button, Input, Loading } from '../components';
 import { productService } from '../services/productService';
 import { Product } from '../types';
 import { formatCurrency, formatStock } from '../utils/helpers';
+import { handleError, handleSuccess } from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import {
@@ -45,6 +48,10 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [restockQuantity, setRestockQuantity] = useState('');
+  const [restockReason, setRestockReason] = useState('');
+  const [restocking, setRestocking] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -153,6 +160,32 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         },
       ],
     );
+  };
+
+  const handleRestock = async () => {
+    const quantity = parseInt(restockQuantity, 10);
+    if (!quantity || quantity <= 0) {
+      Alert.alert('Error', 'Please enter a valid quantity');
+      return;
+    }
+
+    try {
+      setRestocking(true);
+      await productService.restockProduct(
+        productId,
+        quantity,
+        restockReason.trim() || undefined,
+      );
+      handleSuccess('Product restocked successfully');
+      setShowRestockModal(false);
+      setRestockQuantity('');
+      setRestockReason('');
+      await fetchProduct();
+    } catch (error) {
+      handleError(error, 'Failed to restock product');
+    } finally {
+      setRestocking(false);
+    }
   };
 
   const updateField = (field: string, value: string) => {
@@ -389,6 +422,11 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
             <View style={styles.actionButtons}>
               <Button
+                title="Restock"
+                onPress={() => setShowRestockModal(true)}
+                style={styles.button}
+              />
+              <Button
                 title="Edit Product"
                 onPress={() => setIsEditing(true)}
                 style={styles.button}
@@ -566,6 +604,60 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </>
         )}
       </ScrollView>
+
+      {/* Restock Modal */}
+      <Modal
+        visible={showRestockModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRestockModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Restock Product</Text>
+            <Text style={styles.modalSubtitle}>{product.name}</Text>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Quantity</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter quantity"
+                value={restockQuantity}
+                onChangeText={setRestockQuantity}
+                keyboardType="numeric"
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Reason (Optional)</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Reason for restocking"
+                value={restockReason}
+                onChangeText={setRestockReason}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                onPress={() => setShowRestockModal(false)}
+                variant="outline"
+                style={styles.modalButton}
+              />
+              <Button
+                title={restocking ? 'Restocking...' : 'Restock'}
+                onPress={handleRestock}
+                disabled={restocking}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -714,6 +806,55 @@ const styles = StyleSheet.create({
   },
   profitNegative: {
     color: COLORS.error,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: SPACING.lg,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  modalSubtitle: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.lg,
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.lg,
+  },
+  modalButton: {
+    flex: 1,
+  },
+  formGroup: {
+    marginBottom: SPACING.md,
+  },
+  input: {
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   actionButtons: {
     flexDirection: 'row',

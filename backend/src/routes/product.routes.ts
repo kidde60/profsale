@@ -683,6 +683,211 @@ router.get(
   },
 );
 
+// Restock product endpoint
+router.post('/:id/restock', authenticateToken, async (req: Request, res: Response) => {
+  const businessId = req.user?.businessId;
+  const productId = parseInt(req.params.id as string, 10);
+  const { quantity, reason } = req.body;
+  const userId = req.user?.id;
+
+  if (!businessId || !userId) {
+    res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  if (!quantity || quantity <= 0) {
+    res.status(400).json({
+      success: false,
+      message: 'Quantity must be greater than 0',
+    });
+    return;
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Get current product stock
+    const [products] = await connection.execute<any[]>(
+      'SELECT id, current_stock, quantity_in_stock FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
+      [productId, businessId],
+    );
+
+    if (products.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+      await connection.rollback();
+      connection.release();
+      return;
+    }
+
+    const product = products[0];
+    const previousQuantity = product.current_stock || product.quantity_in_stock || 0;
+    const newQuantity = previousQuantity + quantity;
+
+    // Update product stock
+    await connection.execute(
+      'UPDATE products SET current_stock = ?, quantity_in_stock = ?, updated_at = NOW() WHERE id = ?',
+      [newQuantity, newQuantity, productId],
+    );
+
+    // Record stock change
+    await connection.execute(
+      `INSERT INTO stock_records (business_id, product_id, quantity_change, previous_quantity, new_quantity, change_type, reason, performed_by)
+       VALUES (?, ?, ?, ?, ?, 'restock', ?, ?)`,
+      [businessId, productId, quantity, previousQuantity, newQuantity, reason || null, userId],
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: 'Product restocked successfully',
+      data: {
+        previous_quantity: previousQuantity,
+        new_quantity: newQuantity,
+        quantity_added: quantity,
+      },
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Restock error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to restock product',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? (error as Error).message
+          : undefined,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+// Get stock records for a product
+router.get('/:id/stock-records', authenticateToken, async (req: Request, res: Response) => {
+  const businessId = req.user?.businessId;
+  const productId = parseInt(req.params.id as string, 10);
+
+  if (!businessId) {
+    res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  try {
+    const [records] = await pool.execute<any[]>(
+      `SELECT 
+        sr.*,
+        p.name as product_name,
+        u.first_name as performed_by_first_name,
+        u.last_name as performed_by_last_name
+      FROM stock_records sr
+      JOIN products p ON sr.product_id = p.id
+      LEFT JOIN users u ON sr.performed_by = u.id
+      WHERE sr.business_id = ? AND sr.product_id = ?
+      ORDER BY sr.created_at DESC
+      LIMIT 100`,
+      [businessId, productId],
+    );
+
+    res.json({
+      success: true,
+      data: {
+        records,
+      },
+    });
+  } catch (error) {
+    console.error('Get stock records error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get stock records',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? (error as Error).message
+          : undefined,
+    });
+  }
+});
+
+// Get all stock records for the business
+router.get('/stock-records/all', authenticateToken, async (req: Request, res: Response) => {
+  const businessId = req.user?.businessId;
+  const { startDate, endDate, changeType, productId } = req.query;
+
+  if (!businessId) {
+    res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  try {
+    let query = `
+      SELECT 
+        sr.*,
+        p.name as product_name,
+        u.first_name as performed_by_first_name,
+        u.last_name as performed_by_last_name
+      FROM stock_records sr
+      JOIN products p ON sr.product_id = p.id
+      LEFT JOIN users u ON sr.performed_by = u.id
+      WHERE sr.business_id = ?
+    `;
+    const params: any[] = [businessId];
+
+    if (startDate) {
+      query += ' AND sr.created_at >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ' AND sr.created_at <= ?';
+      params.push(endDate);
+    }
+
+    if (changeType) {
+      query += ' AND sr.change_type = ?';
+      params.push(changeType);
+    }
+
+    if (productId) {
+      query += ' AND sr.product_id = ?';
+      params.push(parseInt(productId as string, 10));
+    }
+
+    query += ' ORDER BY sr.created_at DESC LIMIT 500';
+
+    const [records] = await pool.execute<any[]>(query, params);
+
+    res.json({
+      success: true,
+      data: {
+        records,
+      },
+    });
+  } catch (error) {
+    console.error('Get all stock records error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get stock records',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? (error as Error).message
+          : undefined,
+    });
+  }
+});
+
 // Test endpoint
 router.get('/test', (req: Request, res: Response) => {
   res.json({

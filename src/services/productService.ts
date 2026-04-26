@@ -48,6 +48,37 @@ export const productService = {
     await apiClient.delete(`/products/${id}`);
   },
 
+  // Restock product
+  async restockProduct(id: number, quantity: number, reason?: string): Promise<any> {
+    const response = await apiClient.post<ApiResponse<any>>(
+      `/products/${id}/restock`,
+      { quantity, reason },
+    );
+    return response.data.data;
+  },
+
+  // Get stock records for a product
+  async getStockRecords(id: number): Promise<any> {
+    const response = await apiClient.get<ApiResponse<any>>(
+      `/products/${id}/stock-records`,
+    );
+    return response.data.data;
+  },
+
+  // Get all stock records for the business
+  async getAllStockRecords(params?: {
+    startDate?: string;
+    endDate?: string;
+    changeType?: string;
+    productId?: number;
+  }): Promise<any> {
+    const response = await apiClient.get<ApiResponse<any>>(
+      '/products/stock-records/all',
+      { params },
+    );
+    return response.data.data;
+  },
+
   // Search by barcode
   async searchByBarcode(barcode: string): Promise<Product | null> {
     const response = await apiClient.get<ApiResponse<Product>>(

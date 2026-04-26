@@ -55,8 +55,8 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
         ? response.data
         : (response.data as any)?.products || [];
       setProducts(productsData);
-    } catch {
-      Alert.alert('Error', 'Failed to load products');
+    } catch (error) {
+      console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }

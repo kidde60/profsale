@@ -519,6 +519,29 @@ CREATE TABLE payment_records (
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Stock records table for tracking stock changes (restocking, sales, adjustments)
+CREATE TABLE stock_records (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  product_id INT NOT NULL,
+  quantity_change INT NOT NULL,
+  previous_quantity INT NOT NULL,
+  new_quantity INT NOT NULL,
+  change_type ENUM('restock', 'sale', 'adjustment', 'return') NOT NULL,
+  reason VARCHAR(255),
+  performed_by INT NOT NULL,
+  reference_id INT NULL COMMENT 'Reference to sale_id or other related record',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+  FOREIGN KEY (performed_by) REFERENCES users(id),
+  INDEX idx_business_id (business_id),
+  INDEX idx_product_id (product_id),
+  INDEX idx_change_type (change_type),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Tax configurations table
 CREATE TABLE tax_configurations (
   id INT AUTO_INCREMENT PRIMARY KEY,
