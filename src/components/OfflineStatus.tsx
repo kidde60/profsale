@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 import { networkService } from '../services/networkService';
-import { localStorageService } from '../services/localStorageService';
-
 export const OfflineStatus: React.FC = () => {
   const [isOffline, setIsOffline] = useState(false);
   const [queueCount, setQueueCount] = useState(0);
@@ -49,7 +46,7 @@ export const OfflineStatus: React.FC = () => {
   if (!isOffline && queueCount === 0) return null;
 
   return (
-    <SafeAreaView
+    <View
       style={{ backgroundColor: isOffline ? COLORS.error : COLORS.warning }}
     >
       <Animated.View
@@ -74,26 +71,26 @@ export const OfflineStatus: React.FC = () => {
           )}
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    paddingVertical: 1,
     paddingHorizontal: 16,
   },
   content: {
     alignItems: 'center',
   },
   text: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.white,
   },
   queueText: {
-    fontSize: 12,
+    fontSize: 10,
     color: COLORS.white,
-    marginTop: 2,
+    marginTop: 1,
   },
 });

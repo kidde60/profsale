@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Card, Loading } from '../components';
 import reportsService, { ProfitLossReport } from '../services/reportsService';
@@ -30,6 +31,13 @@ const ReportsScreen: React.FC = () => {
     fetchReport();
   }, [period, customStartDate, customEndDate]);
 
+  // Refresh report data whenever the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchReport();
+    }, [period, customStartDate, customEndDate]),
+  );
+
   const fetchReport = async () => {
     try {
       setLoading(true);
@@ -47,9 +55,30 @@ const ReportsScreen: React.FC = () => {
         startDate.setFullYear(endDate.getFullYear() - 1);
       }
 
+      // Format dates to local date string (YYYY-MM-DD) to avoid timezone issues
+      const formatDateToLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      // Set end date to end of day (23:59:59) to include all sales on that day
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      const formatDateTimeToLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      };
+
       const reportData = await reportsService.getProfitLoss(
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0],
+        formatDateToLocal(startDate),
+        formatDateTimeToLocal(endOfDay),
       );
       setReport(reportData);
     } catch (error) {

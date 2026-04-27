@@ -171,6 +171,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
     'cash' | 'mobile_money' | 'card' | 'credit'
   >('cash');
   const [amountTendered, setAmountTendered] = useState('');
+  const [discountAmount, setDiscountAmount] = useState('');
   const [processing, setProcessing] = useState(false);
 
   // editing state — tracks which item + which field is active
@@ -208,6 +209,12 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const calculateTotal = () =>
+    editableCart.reduce(
+      (sum, item) => sum + (parseFloat(String(item.subtotal)) || 0),
+      0,
+    ) - (parseFloat(discountAmount) || 0);
+
+  const calculateSubtotal = () =>
     editableCart.reduce(
       (sum, item) => sum + (parseFloat(String(item.subtotal)) || 0),
       0,
@@ -346,6 +353,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         })),
         paymentMethod,
         total: calculateTotal(),
+        discountAmount: parseFloat(discountAmount) || 0,
         amountPaid:
           paymentMethod === 'credit' && amountTendered
             ? parseFloat(amountTendered)
@@ -453,6 +461,37 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             ))}
           </View>
+
+          {/* Discount field */}
+          <View style={styles.discountRow}>
+            <Text style={styles.discountLabel}>Discount</Text>
+            <TextInput
+              style={styles.discountInput}
+              value={discountAmount}
+              onChangeText={setDiscountAmount}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor={COLORS.textSecondary}
+            />
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Subtotal</Text>
+            <Text style={styles.summaryValue}>
+              {formatCurrency(calculateSubtotal())}
+            </Text>
+          </View>
+
+          {parseFloat(discountAmount) > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryLabel, styles.discountText]}>
+                Discount
+              </Text>
+              <Text style={[styles.summaryValue, styles.discountText]}>
+                -{formatCurrency(parseFloat(discountAmount) || 0)}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
@@ -729,6 +768,52 @@ const styles = StyleSheet.create({
   subtotalPillText: {
     color: COLORS.primary,
     fontWeight: '700',
+  },
+
+  // ── Discount ────────────────────────────────────────────────
+  discountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  discountLabel: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  discountInput: {
+    width: 100,
+    height: 40,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text,
+    textAlign: 'right',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+  },
+  summaryLabel: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  summaryValue: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  discountText: {
+    color: COLORS.error,
   },
 
   // ── Total ─────────────────────────────────────────────────

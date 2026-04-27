@@ -21,11 +21,12 @@ router.get(
       const [todayStats] = await pool.execute<any[]>(
         `SELECT 
         COUNT(*) as total_transactions,
-        COALESCE(SUM(s.total_amount), 0) as total_revenue,
-        COALESCE(AVG(s.total_amount), 0) as average_transaction,
-        COUNT(DISTINCT s.customer_id) as unique_customers
-      FROM sales s
-      WHERE s.business_id = ? AND DATE(s.sale_date) = ? AND s.status = 'completed'`,
+        SUM(total_amount) as total_revenue,
+        AVG(total_amount) as average_transaction
+      FROM sales
+      WHERE business_id = ? 
+        AND DATE(sale_date) = ? 
+        AND status = 'completed'`,
         [businessId, today],
       );
 
@@ -58,30 +59,81 @@ router.get(
       );
 
       // Get this month's statistics
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const monthEnd = new Date();
+      monthEnd.setMonth(monthEnd.getMonth() + 1);
+      monthEnd.setDate(0);
+      monthEnd.setHours(23, 59, 59, 999);
+
       const [monthStats] = await pool.execute<any[]>(
         `SELECT 
-        COUNT(DISTINCT s.id) as total_transactions,
-        COALESCE(SUM(s.total_amount), 0) as total_revenue,
-        COALESCE(SUM((si.unit_price - COALESCE(p.buying_price, 0)) * si.quantity), 0) as total_profit
-      FROM sales s
-      LEFT JOIN sale_items si ON s.id = si.sale_id
-      LEFT JOIN products p ON si.product_id = p.id
-      WHERE s.business_id = ? AND DATE_FORMAT(s.sale_date, '%Y-%m') = ? AND s.status = 'completed'`,
-        [businessId, thisMonth],
+        COUNT(*) as total_transactions,
+        SUM(total_amount) as total_revenue
+      FROM sales
+      WHERE business_id = ? 
+        AND sale_date >= ? 
+        AND sale_date <= ?
+        AND status = 'completed'`,
+        [businessId, monthStart, monthEnd],
       );
 
+      // Calculate profit separately
+      const [monthProfit] = await pool.execute<any[]>(
+        `SELECT 
+        SUM(si.quantity * p.buying_price) as cost_of_goods_sold
+      FROM sale_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN products p ON si.product_id = p.id
+      WHERE s.business_id = ?
+        AND s.sale_date >= ?
+        AND s.sale_date <= ?
+        AND s.status = 'completed'`,
+        [businessId, monthStart, monthEnd],
+      );
+
+      if (monthStats.length > 0 && monthProfit.length > 0) {
+        monthStats[0].total_profit = (monthStats[0].total_revenue || 0) - (monthProfit[0].cost_of_goods_sold || 0);
+      }
+
       // Get this week's statistics
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date();
+      weekEnd.setDate(weekEnd.getDate() + (6 - weekEnd.getDay()));
+      weekEnd.setHours(23, 59, 59, 999);
+
       const [weekStats] = await pool.execute<any[]>(
         `SELECT 
-        COUNT(DISTINCT s.id) as total_transactions,
-        COALESCE(SUM(s.total_amount), 0) as total_revenue,
-        COALESCE(SUM((si.unit_price - COALESCE(p.buying_price, 0)) * si.quantity), 0) as total_profit
-      FROM sales s
-      LEFT JOIN sale_items si ON s.id = si.sale_id
-      LEFT JOIN products p ON si.product_id = p.id
-      WHERE s.business_id = ? AND YEARWEEK(s.sale_date) = YEARWEEK(NOW()) AND s.status = 'completed'`,
-        [businessId],
+        COUNT(*) as total_transactions,
+        SUM(total_amount) as total_revenue
+      FROM sales
+      WHERE business_id = ? 
+        AND sale_date >= ? 
+        AND sale_date <= ?
+        AND status = 'completed'`,
+        [businessId, weekStart, weekEnd],
       );
+
+      // Calculate profit separately
+      const [weekProfit] = await pool.execute<any[]>(
+        `SELECT 
+        SUM(si.quantity * p.buying_price) as cost_of_goods_sold
+      FROM sale_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN products p ON si.product_id = p.id
+      WHERE s.business_id = ?
+        AND s.sale_date >= ?
+        AND s.sale_date <= ?
+        AND s.status = 'completed'`,
+        [businessId, weekStart, weekEnd],
+      );
+
+      if (weekStats.length > 0 && weekProfit.length > 0) {
+        weekStats[0].total_profit = (weekStats[0].total_revenue || 0) - (weekProfit[0].cost_of_goods_sold || 0);
+      }
 
       // Get inventory overview
       const [inventoryStats] = await pool.execute<any[]>(

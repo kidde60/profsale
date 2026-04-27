@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { Card, Loading } from '../components';
 import { dashboardService } from '../services/dashboardService';
 import subscriptionService, {
@@ -44,6 +45,14 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     fetchDashboardData();
     fetchSubscription();
   }, []);
+
+  // Refresh dashboard data whenever the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+      fetchSubscription();
+    }, []),
+  );
 
   const fetchDashboardData = async () => {
     try {
