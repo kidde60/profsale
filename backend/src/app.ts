@@ -223,6 +223,7 @@ app.use('*', (req, res) => {
   });
 });
 
+console.log(process.env.EMAIL_USER, process.env.EMAIL_PASSWORD);
 // Basic error handler
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Error:', err);
