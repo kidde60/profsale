@@ -687,7 +687,7 @@ router.get(
 router.post('/:id/restock', authenticateToken, async (req: Request, res: Response) => {
   const businessId = req.user?.businessId;
   const productId = parseInt(req.params.id as string, 10);
-  const { quantity, reason } = req.body;
+  const { quantity, reason, costAmount } = req.body;
   const userId = req.user?.id;
 
   if (!businessId || !userId) {
@@ -710,9 +710,9 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
   try {
     await connection.beginTransaction();
 
-    // Get current product stock
+    // Get current product stock and cost price
     const [products] = await connection.execute<any[]>(
-      'SELECT id, current_stock FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
+      'SELECT id, current_stock, cost_price, buying_price, name FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
       [productId, businessId],
     );
 
@@ -746,6 +746,28 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
       [businessId, productId, quantity, previousQuantity, newQuantity, reason || null, userId],
     );
 
+    // Create expense record for the restock cost
+    const costPrice = parseFloat(product.cost_price || product.buying_price || 0);
+    const totalCost = costAmount || (costPrice * quantity);
+    
+    if (totalCost > 0) {
+      await connection.execute(
+        `INSERT INTO expenses 
+        (business_id, description, amount, category, expense_date, payment_method, notes, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          businessId,
+          `Restock: ${product.name}`,
+          totalCost,
+          'Inventory',
+          new Date().toISOString().split('T')[0],
+          'cash',
+          reason || `Restocked ${quantity} units of ${product.name}`,
+          userId,
+        ],
+      );
+    }
+
     await connection.commit();
     console.log('Transaction committed successfully');
 
@@ -756,6 +778,7 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
         previous_quantity: previousQuantity,
         new_quantity: newQuantity,
         quantity_added: quantity,
+        cost_recorded: totalCost,
       },
     });
   } catch (error) {
@@ -764,10 +787,7 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
     res.status(500).json({
       success: false,
       message: 'Failed to restock product',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   } finally {
     connection.release();
