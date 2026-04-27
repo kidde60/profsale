@@ -6,11 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  TextInput,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Button, Input, Loading } from '../components';
+import { Card, Button, Input } from '../components';
 import { salesService } from '../services/salesService';
 import { customerService } from '../services/customerService';
 import { Customer } from '../types';
@@ -23,7 +24,6 @@ type CheckoutScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Checkout'
 >;
-
 type CheckoutScreenRouteProp = RouteProp<RootStackParamList, 'Checkout'>;
 
 interface Props {
@@ -31,9 +31,130 @@ interface Props {
   route: CheckoutScreenRouteProp;
 }
 
+// ─── reusable inline-edit field ───────────────────────────────────────────────
+interface EditFieldProps {
+  label: string;
+  displayValue: string;
+  isEditing: boolean;
+  tempValue: string;
+  onTap: () => void;
+  onChangeText: (v: string) => void;
+  onConfirm: () => void;
+  pillStyle?: object;
+  pillTextStyle?: object;
+}
+
+const EditField: React.FC<EditFieldProps> = ({
+  label,
+  displayValue,
+  isEditing,
+  tempValue,
+  onTap,
+  onChangeText,
+  onConfirm,
+  pillStyle,
+  pillTextStyle,
+}) => (
+  <View style={fieldStyles.group}>
+    <Text style={fieldStyles.label}>{label}</Text>
+    {isEditing ? (
+      <View style={fieldStyles.editRow}>
+        <TextInput
+          value={tempValue}
+          onChangeText={onChangeText}
+          keyboardType="decimal-pad"
+          style={fieldStyles.input}
+          autoFocus
+          selectTextOnFocus
+          onSubmitEditing={onConfirm}
+        />
+        <TouchableOpacity onPress={onConfirm} style={fieldStyles.confirmBtn}>
+          <Text style={fieldStyles.confirmBtnText}>✓</Text>
+        </TouchableOpacity>
+      </View>
+    ) : (
+      <TouchableOpacity
+        style={[fieldStyles.pill, pillStyle]}
+        onPress={onTap}
+        activeOpacity={0.7}
+      >
+        <Text style={[fieldStyles.pillValue, pillTextStyle]} numberOfLines={1}>
+          {displayValue}
+        </Text>
+        <Text style={fieldStyles.pillIcon}>✎</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+const fieldStyles = StyleSheet.create({
+  group: {
+    marginTop: SPACING.xs,
+  },
+  label: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.6,
+    marginBottom: 3,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: SPACING.sm,
+    gap: 4,
+  },
+  pillValue: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  pillIcon: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  editRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  input: {
+    flex: 1,
+    height: 36,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    paddingHorizontal: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    backgroundColor: COLORS.surface,
+  },
+  confirmBtn: {
+    backgroundColor: COLORS.success,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmBtnText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '700',
+  },
+});
+// ──────────────────────────────────────────────────────────────────────────────
+
 const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   const { user } = useAuth();
-  const { cart, total } = route.params;
+  const { cart } = route.params;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -51,78 +172,129 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   >('cash');
   const [amountTendered, setAmountTendered] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
-  const [tempPrice, setTempPrice] = useState('');
+
+  // editing state — tracks which item + which field is active
+  const [editingQtyId, setEditingQtyId] = useState<number | null>(null);
+  const [tempQty, setTempQty] = useState('');
+  const [editingRateId, setEditingRateId] = useState<number | null>(null);
+  const [tempRate, setTempRate] = useState('');
+  const [editingSubtotalId, setEditingSubtotalId] = useState<number | null>(
+    null,
+  );
+  const [tempSubtotal, setTempSubtotal] = useState('');
+
   const [editableCart, setEditableCart] = useState(cart);
 
   useEffect(() => {
     fetchCustomers();
   }, []);
 
+  const closeAllEdits = () => {
+    setEditingQtyId(null);
+    setEditingRateId(null);
+    setEditingSubtotalId(null);
+  };
+
   const fetchCustomers = async () => {
     try {
       const response = await customerService.getCustomers({});
-      const customersData = Array.isArray(response.data)
+      const data = Array.isArray(response.data)
         ? response.data
         : (response as any)?.data?.customers || [];
-      setCustomers(customersData);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
+      setCustomers(data);
+    } catch (e) {
+      console.error('Error fetching customers:', e);
     }
   };
 
-  const calculateTotal = () => {
-    return editableCart.reduce((sum, item) => {
-      const itemSubtotal = parseFloat(String(item.subtotal)) || 0;
-      return sum + itemSubtotal;
-    }, 0);
+  const calculateTotal = () =>
+    editableCart.reduce(
+      (sum, item) => sum + (parseFloat(String(item.subtotal)) || 0),
+      0,
+    );
+
+  const calculateChange = () =>
+    (parseFloat(amountTendered) || 0) - calculateTotal();
+
+  // Round to nearest 100 shillings (since 50 shillings no longer exists)
+  const roundToNearest100 = (value: number): number => {
+    return Math.round(value / 100) * 100;
   };
 
-  const calculateChange = () => {
-    const tendered = parseFloat(amountTendered) || 0;
-    return tendered - calculateTotal();
+  const updateQty = (productId: number) => {
+    const qty = parseFloat(tempQty);
+    if (isNaN(qty) || qty <= 0) {
+      Alert.alert('Invalid Quantity', 'Please enter a valid quantity');
+      return;
+    }
+    setEditableCart(prev =>
+      prev.map(item => {
+        if (item.product.id === productId) {
+          const subtotal = roundToNearest100(item.unitPrice * qty);
+          return { ...item, quantity: qty, subtotal };
+        }
+        return item;
+      }),
+    );
+    setEditingQtyId(null);
+    setTempQty('');
   };
 
-  const updateItemPrice = (productId: number) => {
-    const newPrice = parseFloat(tempPrice);
-    if (isNaN(newPrice) || newPrice <= 0) {
+  const updateRate = (productId: number) => {
+    const rate = parseFloat(tempRate);
+    if (isNaN(rate) || rate <= 0) {
       Alert.alert('Invalid Price', 'Please enter a valid price');
       return;
     }
-
     setEditableCart(prev =>
-      prev.map(item =>
-        item.product.id === productId
-          ? {
-              ...item,
-              unitPrice: newPrice,
-              subtotal: newPrice * item.quantity,
-            }
-          : item,
-      ),
+      prev.map(item => {
+        if (item.product.id === productId) {
+          const subtotal = roundToNearest100(rate * item.quantity);
+          return { ...item, unitPrice: rate, subtotal };
+        }
+        return item;
+      }),
     );
+    setEditingRateId(null);
+    setTempRate('');
+  };
 
-    setEditingPriceId(null);
-    setTempPrice('');
+  const updateSubtotal = (productId: number) => {
+    const sub = parseFloat(tempSubtotal);
+    if (isNaN(sub) || sub <= 0) {
+      Alert.alert('Invalid Subtotal', 'Please enter a valid subtotal');
+      return;
+    }
+    const roundedSubtotal = roundToNearest100(sub);
+    setEditableCart(prev =>
+      prev.map(item => {
+        if (item.product.id === productId) {
+          return {
+            ...item,
+            subtotal: roundedSubtotal,
+            unitPrice:
+              item.quantity > 0
+                ? roundToNearest100(roundedSubtotal / item.quantity)
+                : item.unitPrice,
+          };
+        }
+        return item;
+      }),
+    );
+    setEditingSubtotalId(null);
+    setTempSubtotal('');
   };
 
   const confirmSale = async () => {
-    if (paymentMethod === 'cash') {
-      const change = calculateChange();
-      if (change < 0) {
-        Alert.alert(
-          'Insufficient Payment',
-          'Amount tendered is less than total',
-        );
-        return;
-      }
+    if (paymentMethod === 'cash' && calculateChange() < 0) {
+      Alert.alert('Insufficient Payment', 'Amount tendered is less than total');
+      return;
     }
-
     if (paymentMethod === 'credit') {
       if (customerType === 'existing' && !selectedCustomer) {
         Alert.alert(
           'Customer Required',
-          'Credit sales must be linked to a customer for proper tracking',
+          'Credit sales must be linked to a customer',
         );
         return;
       }
@@ -134,15 +306,12 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         return;
       }
     }
-
     if (customerType === 'existing' && !selectedCustomer) {
       Alert.alert('Customer Required', 'Please select a customer');
       return;
     }
 
     let customerId = selectedCustomer?.id || null;
-
-    // Create new customer if needed
     if (customerType === 'new' && customerName.trim()) {
       try {
         const newCustomer = await customerService.createCustomer({
@@ -153,19 +322,17 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           business_id: user?.businessId || 1,
         });
         customerId = newCustomer.id;
-      } catch (error) {
-        console.error('Error creating customer:', error);
+      } catch (e) {
         Alert.alert('Error', 'Failed to create customer. Please try again.');
-        setProcessing(false);
         return;
       }
     }
 
     try {
       setProcessing(true);
-      const saleData = {
+      await salesService.createSale({
         businessId: user?.businessId || 1,
-        customerId: customerId,
+        customer_id: customerId || undefined,
         customerName:
           customerType === 'existing'
             ? selectedCustomer?.name
@@ -179,14 +346,15 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         })),
         paymentMethod,
         total: calculateTotal(),
-      };
-
-      await salesService.createSale(saleData);
-
+        amountPaid:
+          paymentMethod === 'credit' && amountTendered
+            ? parseFloat(amountTendered)
+            : undefined,
+      });
       Alert.alert('Success', 'Sale completed successfully', [
         {
           text: 'OK',
-          onPress: () => {
+          onPress: () =>
             navigation.reset({
               index: 0,
               routes: [
@@ -197,12 +365,10 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                   },
                 },
               ],
-            });
-          },
+            }),
         },
       ]);
-    } catch (error) {
-      console.error('Sale error:', error);
+    } catch (e) {
       Alert.alert('Error', 'Failed to complete sale');
     } finally {
       setProcessing(false);
@@ -219,133 +385,118 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView style={styles.content}>
-        {/* Items List */}
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+        {/* ── Order Items ── */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Order Items</Text>
-          {editableCart.map((item, _index) => (
-            <View key={item.product.id} style={styles.itemRow}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.product.name}</Text>
-                <Text style={styles.itemQty}>Qty: {item.quantity}</Text>
-              </View>
-              <View style={styles.itemPriceSection}>
-                {editingPriceId === item.product.id ? (
-                  <View style={styles.priceEditContainer}>
-                    <Input
-                      value={tempPrice}
-                      onChangeText={setTempPrice}
-                      keyboardType="decimal-pad"
-                      style={styles.priceEditInput}
-                      autoFocus
+
+          <View style={styles.itemGrid}>
+            {editableCart.map(item => (
+              <View key={item.product.id} style={styles.itemCard}>
+                <Text style={styles.itemName} numberOfLines={2}>
+                  {item.product.name}
+                </Text>
+
+                <View style={styles.fieldsRow}>
+                  <View style={styles.fieldColumn}>
+                    <EditField
+                      label="QTY"
+                      displayValue={String(item.quantity)}
+                      isEditing={editingQtyId === item.product.id}
+                      tempValue={tempQty}
+                      onTap={() => {
+                        closeAllEdits();
+                        setEditingQtyId(item.product.id);
+                        setTempQty(String(item.quantity));
+                      }}
+                      onChangeText={setTempQty}
+                      onConfirm={() => updateQty(item.product.id)}
                     />
-                    <TouchableOpacity
-                      onPress={() => updateItemPrice(item.product.id)}
-                      style={styles.priceEditButton}
-                    >
-                      <Text style={styles.priceEditButtonText}>✓</Text>
-                    </TouchableOpacity>
                   </View>
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditingPriceId(item.product.id);
-                      setTempPrice(String(item.unitPrice));
+
+                  <View style={styles.fieldColumn}>
+                    <EditField
+                      label="RATE"
+                      displayValue={formatCurrency(item.unitPrice)}
+                      isEditing={editingRateId === item.product.id}
+                      tempValue={tempRate}
+                      onTap={() => {
+                        closeAllEdits();
+                        setEditingRateId(item.product.id);
+                        setTempRate(String(item.unitPrice));
+                      }}
+                      onChangeText={setTempRate}
+                      onConfirm={() => updateRate(item.product.id)}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.subtotalRow}>
+                  <EditField
+                    label="SUBTOTAL"
+                    displayValue={formatCurrency(item.subtotal)}
+                    isEditing={editingSubtotalId === item.product.id}
+                    tempValue={tempSubtotal}
+                    onTap={() => {
+                      closeAllEdits();
+                      setEditingSubtotalId(item.product.id);
+                      setTempSubtotal(
+                        parseFloat(String(item.subtotal)).toFixed(2),
+                      );
                     }}
-                  >
-                    <Text style={styles.itemPrice}>
-                      {formatCurrency(item.subtotal)}
-                    </Text>
-                    <Text style={styles.itemUnitPrice}>
-                      @ {formatCurrency(item.unitPrice)}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                    onChangeText={setTempSubtotal}
+                    onConfirm={() => updateSubtotal(item.product.id)}
+                    pillStyle={styles.subtotalPill}
+                    pillTextStyle={styles.subtotalPillText}
+                  />
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
+          </View>
+
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total:</Text>
+            <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>
               {formatCurrency(calculateTotal())}
             </Text>
           </View>
         </Card>
 
-        {/* Customer Selection */}
+        {/* ── Customer ── */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Customer</Text>
-
-          <View style={styles.customerTypeContainer}>
-            <TouchableOpacity
-              style={[
-                styles.customerTypeButton,
-                customerType === 'walkin' && styles.customerTypeButtonActive,
-              ]}
-              onPress={() => {
-                setCustomerType('walkin');
-                setSelectedCustomer(null);
-                setCustomerName('');
-                setCustomerPhone('');
-                setCustomerSearch('');
-              }}
-            >
-              <Text
+          <View style={styles.segmentedControl}>
+            {(['walkin', 'existing', 'new'] as const).map(type => (
+              <TouchableOpacity
+                key={type}
                 style={[
-                  styles.customerTypeButtonText,
-                  customerType === 'walkin' &&
-                    styles.customerTypeButtonTextActive,
+                  styles.segmentBtn,
+                  customerType === type && styles.segmentBtnActive,
                 ]}
+                onPress={() => {
+                  setCustomerType(type);
+                  setSelectedCustomer(null);
+                  setCustomerName('');
+                  setCustomerPhone('');
+                  setCustomerSearch('');
+                }}
               >
-                Walk-in
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.customerTypeButton,
-                customerType === 'existing' && styles.customerTypeButtonActive,
-              ]}
-              onPress={() => {
-                setCustomerType('existing');
-                setSelectedCustomer(null);
-                setCustomerSearch('');
-              }}
-            >
-              <Text
-                style={[
-                  styles.customerTypeButtonText,
-                  customerType === 'existing' &&
-                    styles.customerTypeButtonTextActive,
-                ]}
-              >
-                Existing
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.customerTypeButton,
-                customerType === 'new' && styles.customerTypeButtonActive,
-              ]}
-              onPress={() => {
-                setCustomerType('new');
-                setSelectedCustomer(null);
-                setCustomerSearch('');
-              }}
-            >
-              <Text
-                style={[
-                  styles.customerTypeButtonText,
-                  customerType === 'new' && styles.customerTypeButtonTextActive,
-                ]}
-              >
-                New
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.segmentBtnText,
+                    customerType === type && styles.segmentBtnTextActive,
+                  ]}
+                >
+                  {type === 'walkin'
+                    ? 'Walk-in'
+                    : type === 'existing'
+                    ? 'Existing'
+                    : 'New'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {/* Existing Customer Search */}
           {customerType === 'existing' && !selectedCustomer && (
             <View style={styles.customerSearchContainer}>
               <Input
@@ -360,7 +511,6 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                   setShowCustomerDropdown(customerSearch.length > 0)
                 }
               />
-
               {showCustomerDropdown && filteredCustomers.length > 0 && (
                 <View style={styles.customerDropdown}>
                   <ScrollView
@@ -377,16 +527,14 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                           setShowCustomerDropdown(false);
                         }}
                       >
-                        <View>
-                          <Text style={styles.customerDropdownName}>
-                            {customer.name}
+                        <Text style={styles.customerDropdownName}>
+                          {customer.name}
+                        </Text>
+                        {customer.phone && (
+                          <Text style={styles.customerDropdownPhone}>
+                            {customer.phone}
                           </Text>
-                          {customer.phone && (
-                            <Text style={styles.customerDropdownPhone}>
-                              {customer.phone}
-                            </Text>
-                          )}
-                        </View>
+                        )}
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -395,7 +543,6 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           )}
 
-          {/* Selected Customer */}
           {customerType === 'existing' && selectedCustomer && (
             <View style={styles.selectedCustomer}>
               <View>
@@ -419,7 +566,6 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           )}
 
-          {/* New Customer Form */}
           {customerType === 'new' && (
             <View>
               <Input
@@ -439,7 +585,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </Card>
 
-        {/* Payment Method */}
+        {/* ── Payment ── */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
           <View style={styles.paymentMethods}>
@@ -473,9 +619,9 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                 keyboardType="decimal-pad"
                 placeholder="0.00"
               />
-              {amountTendered && (
+              {amountTendered ? (
                 <View style={styles.changeSection}>
-                  <Text style={styles.changeLabel}>Change:</Text>
+                  <Text style={styles.changeLabel}>Change</Text>
                   <Text
                     style={[
                       styles.changeAmount,
@@ -485,7 +631,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                     {formatCurrency(calculateChange())}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
           )}
 
@@ -498,22 +644,21 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                 keyboardType="decimal-pad"
                 placeholder="Leave empty for full credit"
               />
-              {amountTendered && parseFloat(amountTendered) > 0 && (
+              {amountTendered && parseFloat(amountTendered) > 0 ? (
                 <View style={styles.changeSection}>
-                  <Text style={styles.changeLabel}>Balance Due:</Text>
+                  <Text style={styles.changeLabel}>Balance Due</Text>
                   <Text style={styles.changeAmount}>
                     {formatCurrency(
                       calculateTotal() - parseFloat(amountTendered),
                     )}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
           )}
         </Card>
       </ScrollView>
 
-      {/* Action Buttons */}
       <View style={styles.actions}>
         <Button
           title="Cancel"
@@ -533,83 +678,65 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    margin: SPACING.md,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  content: { flex: 1 },
+  section: { margin: SPACING.md },
   sectionTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+
+  // ── 2-column item grid ────────────────────────────────────
+  itemGrid: {
+    flexDirection: 'column',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
-  itemInfo: {
+  itemCard: {
+    width: '100%',
+    backgroundColor: COLORS.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.sm,
+  },
+  fieldsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  fieldColumn: {
     flex: 1,
   },
+  subtotalRow: {
+    marginTop: SPACING.xs,
+  },
   itemName: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  itemQty: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.textSecondary,
-  },
-  itemPriceSection: {
-    alignItems: 'flex-end',
-  },
-  itemPrice: {
-    fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+    minHeight: 36,
+  },
+
+  // subtotal pill overrides
+  subtotalPill: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.background,
+  },
+  subtotalPillText: {
     color: COLORS.primary,
-  },
-  itemUnitPrice: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  priceEditContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  priceEditInput: {
-    width: 80,
-    marginBottom: 0,
-  },
-  priceEditButton: {
-    backgroundColor: COLORS.success,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  priceEditButtonText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: '700',
   },
+
+  // ── Total ─────────────────────────────────────────────────
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     paddingTop: SPACING.md,
     borderTopWidth: 2,
     borderTopColor: COLORS.border,
@@ -624,36 +751,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.primary,
   },
-  customerTypeContainer: {
+
+  // ── Customer ──────────────────────────────────────────────
+  segmentedControl: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    backgroundColor: COLORS.background,
+    borderRadius: 10,
+    padding: 3,
     marginBottom: SPACING.md,
   },
-  customerTypeButton: {
+  segmentBtn: {
     flex: 1,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
     alignItems: 'center',
   },
-  customerTypeButtonActive: {
+  segmentBtnActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  customerTypeButtonText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
+  segmentBtnText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: '600',
     color: COLORS.text,
   },
-  customerTypeButtonTextActive: {
-    color: COLORS.white,
-  },
-  customerSearchContainer: {
-    position: 'relative',
-    zIndex: 1000,
-  },
+  segmentBtnTextActive: { color: COLORS.white },
+  customerSearchContainer: { position: 'relative', zIndex: 1000 },
   customerDropdown: {
     position: 'absolute',
     top: '100%',
@@ -668,13 +791,11 @@ const styles = StyleSheet.create({
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     zIndex: 1001,
   },
-  customerDropdownScroll: {
-    maxHeight: 200,
-  },
+  customerDropdownScroll: { maxHeight: 200 },
   customerDropdownItem: {
     padding: SPACING.md,
     borderBottomWidth: 1,
@@ -684,7 +805,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   customerDropdownPhone: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -702,7 +823,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   selectedCustomerPhone: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -713,6 +834,8 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
+
+  // ── Payment ───────────────────────────────────────────────
   paymentMethods: {
     flexDirection: 'row',
     gap: SPACING.sm,
@@ -736,12 +859,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
-  paymentMethodTextActive: {
-    color: COLORS.white,
-  },
-  cashSection: {
-    marginTop: SPACING.md,
-  },
+  paymentMethodTextActive: { color: COLORS.white },
+  cashSection: { gap: SPACING.sm },
   changeSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -749,7 +868,6 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     backgroundColor: COLORS.background,
     borderRadius: 8,
-    marginTop: SPACING.sm,
   },
   changeLabel: {
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -761,9 +879,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.success,
   },
-  negativeChange: {
-    color: COLORS.error,
-  },
+  negativeChange: { color: COLORS.error },
+
+  // ── Bottom actions ────────────────────────────────────────
   actions: {
     flexDirection: 'row',
     gap: SPACING.md,
@@ -772,9 +890,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
-  actionButton: {
-    flex: 1,
-  },
+  actionButton: { flex: 1 },
 });
 
 export default CheckoutScreen;

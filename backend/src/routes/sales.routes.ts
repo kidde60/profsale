@@ -42,6 +42,7 @@ router.post(
         discountAmount = 0,
         taxRate = 0,
         notes,
+        amountPaid,
       } = req.body;
 
       // Validation
@@ -153,6 +154,24 @@ router.post(
         const taxAmount = subtotal * (taxRate || 0);
         const totalAmount = subtotal + taxAmount - (discountAmount || 0);
 
+        // Determine amount paid and status
+        let actualAmountPaid = 0;
+        let changeAmount = 0;
+        let status = 'completed';
+
+        if (paymentMethod === 'credit') {
+          // For credit sales, use the amount paid if provided, otherwise 0
+          actualAmountPaid = amountPaid ? parseFloat(amountPaid) : 0;
+          changeAmount = 0;
+          // Status is 'pending' if there's a balance due, 'completed' if fully paid
+          status = actualAmountPaid >= totalAmount ? 'completed' : 'pending';
+        } else {
+          // For cash sales, assume full payment for now
+          actualAmountPaid = totalAmount;
+          changeAmount = 0;
+          status = 'completed';
+        }
+
         // 3. Generate sale number
         const saleNumber = generateSaleNumber(businessId);
 
@@ -162,7 +181,7 @@ router.post(
         (business_id, employee_id, customer_id, sale_number, customer_name, customer_phone,
          subtotal, tax_amount, discount_amount, total_amount, amount_paid, change_amount,
          payment_method, payment_reference, status, notes) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             businessId,
             employeeId,
@@ -174,10 +193,11 @@ router.post(
             taxAmount,
             discountAmount || 0,
             totalAmount,
-            totalAmount,
-            0, // For now, assume exact payment
+            actualAmountPaid,
+            changeAmount,
             paymentMethod,
             paymentReference || null,
+            status,
             notes || null,
           ],
         );
@@ -203,36 +223,8 @@ router.post(
             ],
           );
 
-          // 6. Update product stock
-          await connection.execute(
-            'UPDATE products SET current_stock = current_stock - ? WHERE id = ?',
-            [saleItem.quantity, saleItem.productId],
-          );
-
-          // 7. Create inventory movement
-          const [stockResult] = await connection.execute<any[]>(
-            'SELECT current_stock FROM products WHERE id = ?',
-            [saleItem.productId],
-          );
-          const stockAfter = stockResult[0]?.current_stock || 0;
-          const stockBefore = stockAfter + saleItem.quantity;
-
-          await connection.execute(
-            `INSERT INTO inventory_movements 
-          (business_id, product_id, movement_type, quantity_change, 
-           stock_before, stock_after, reference_id, created_by, notes) 
-          VALUES (?, ?, 'sale', ?, ?, ?, ?, ?, ?)`,
-            [
-              businessId,
-              saleItem.productId,
-              -saleItem.quantity,
-              stockBefore,
-              stockAfter,
-              saleId,
-              employeeId,
-              `Sale #${saleNumber}`,
-            ],
-          );
+          // Note: Stock is automatically updated by the trigger 'update_product_stock_after_sale'
+          // No need to manually update stock here
         }
 
         // 8. Update customer totals if customer exists
@@ -357,7 +349,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     const [sales] = await pool.execute<any[]>(
       `SELECT 
         s.id, s.sale_number, s.customer_name, s.subtotal, s.tax_amount,
-        s.discount_amount, s.total_amount, s.payment_method, s.status,
+        s.discount_amount, s.total_amount, s.amount_paid, s.payment_method, s.status,
         s.sale_date, s.created_at,
         u.first_name as employee_first_name, u.last_name as employee_last_name,
         c.name as customer_full_name,
@@ -1012,9 +1004,10 @@ router.post(
         return;
       }
 
-      const currentPaid = sale.amount_paid || 0;
-      const totalAmount = sale.total_amount;
-      const newPaid = currentPaid + amount;
+      const currentPaid = parseFloat(sale.amount_paid || 0);
+      const totalAmount = parseFloat(sale.total_amount);
+      const paymentAmount = parseFloat(amount);
+      const newPaid = currentPaid + paymentAmount;
 
       if (newPaid > totalAmount) {
         await connection.rollback();
@@ -1026,11 +1019,13 @@ router.post(
       }
 
       // Update sale
-      const newStatus = newPaid >= totalAmount ? 'paid' : 'partial';
+      const newStatus = newPaid >= totalAmount ? 'completed' : 'pending';
+      console.log('Updating sale:', { saleId, newPaid, totalAmount, newStatus, currentPaid, paymentAmount });
       await connection.execute(
-        `UPDATE sales SET amount_paid = ?, payment_status = ?, updated_at = NOW() WHERE id = ?`,
+        `UPDATE sales SET amount_paid = ?, status = ?, updated_at = NOW() WHERE id = ?`,
         [newPaid, newStatus, saleId],
       );
+      console.log('Sale updated successfully');
 
       // Create payment record
       await connection.execute(

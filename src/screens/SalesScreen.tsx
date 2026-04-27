@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { Card, Loading } from '../components';
 import { salesService } from '../services/salesService';
 import { Sale } from '../types';
@@ -38,6 +39,13 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     fetchSales();
   }, []);
+
+  // Refresh sales data whenever the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchSales();
+    }, []),
+  );
 
   useEffect(() => {
     filterSales();

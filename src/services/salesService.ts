@@ -22,6 +22,7 @@ export interface CreateSaleData {
   discountAmount?: number;
   taxRate?: number;
   notes?: string;
+  amountPaid?: number;
 }
 
 export interface RefundData {
