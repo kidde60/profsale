@@ -234,6 +234,21 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
       Alert.alert('Invalid Quantity', 'Please enter a valid quantity');
       return;
     }
+
+    // Check if quantity exceeds available stock
+    const item = editableCart.find(i => i.product.id === productId);
+    if (item) {
+      const availableStock =
+        item.product.current_stock || item.product.quantity_in_stock || 0;
+      if (qty > availableStock) {
+        Alert.alert(
+          'Insufficient Stock',
+          `Only ${availableStock} units available. Please reduce the quantity.`,
+        );
+        return;
+      }
+    }
+
     setEditableCart(prev =>
       prev.map(item => {
         if (item.product.id === productId) {
@@ -502,7 +517,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         </Card>
 
         {/* ── Customer ── */}
-        <Card style={styles.section}>
+        <Card style={[styles.section, styles.customerCard]}>
           <Text style={styles.sectionTitle}>Customer</Text>
           <View style={styles.segmentedControl}>
             {(['walkin', 'existing', 'new'] as const).map(type => (
@@ -536,19 +551,17 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
             ))}
           </View>
 
-          {customerType === 'existing' && !selectedCustomer && (
+          {customerType === 'existing' && (
             <View style={styles.customerSearchContainer}>
               <Input
                 label="Search Customer"
-                value={customerSearch}
+                value={customerSearch || selectedCustomer?.name || ''}
                 onChangeText={text => {
                   setCustomerSearch(text);
-                  setShowCustomerDropdown(text.length > 0);
+                  setShowCustomerDropdown(true);
                 }}
                 placeholder="Type name or phone..."
-                onFocus={() =>
-                  setShowCustomerDropdown(customerSearch.length > 0)
-                }
+                onFocus={() => setShowCustomerDropdown(true)}
               />
               {showCustomerDropdown && filteredCustomers.length > 0 && (
                 <View style={styles.customerDropdown}>
@@ -562,7 +575,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                         style={styles.customerDropdownItem}
                         onPress={() => {
                           setSelectedCustomer(customer);
-                          setCustomerSearch('');
+                          setCustomerSearch(customer.name);
                           setShowCustomerDropdown(false);
                         }}
                       >
@@ -579,29 +592,18 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
                   </ScrollView>
                 </View>
               )}
-            </View>
-          )}
-
-          {customerType === 'existing' && selectedCustomer && (
-            <View style={styles.selectedCustomer}>
-              <View>
-                <Text style={styles.selectedCustomerName}>
-                  {selectedCustomer.name}
-                </Text>
-                {selectedCustomer.phone && (
-                  <Text style={styles.selectedCustomerPhone}>
-                    {selectedCustomer.phone}
-                  </Text>
-                )}
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedCustomer(null);
-                  setCustomerSearch('');
-                }}
-              >
-                <Text style={styles.changeButton}>Change</Text>
-              </TouchableOpacity>
+              {selectedCustomer && !showCustomerDropdown && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedCustomer(null);
+                    setCustomerSearch('');
+                    setShowCustomerDropdown(true);
+                  }}
+                  style={styles.clearButton}
+                >
+                  <Text style={styles.clearButtonText}>Clear Selection</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -720,6 +722,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1 },
   section: { margin: SPACING.md },
+  customerCard: {
+    zIndex: 9999,
+  },
   sectionTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: '700',
@@ -861,7 +866,10 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   segmentBtnTextActive: { color: COLORS.white },
-  customerSearchContainer: { position: 'relative', zIndex: 1000 },
+  customerSearchContainer: {
+    position: 'relative',
+    zIndex: 9999,
+  },
   customerDropdown: {
     position: 'absolute',
     top: '100%',
@@ -873,12 +881,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     maxHeight: 200,
     marginTop: 4,
-    elevation: 5,
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    zIndex: 1001,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    zIndex: 9999,
   },
   customerDropdownScroll: { maxHeight: 200 },
   customerDropdownItem: {
@@ -919,16 +927,25 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
+  clearButton: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-end',
+  },
+  clearButtonText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
 
   // ── Payment ───────────────────────────────────────────────
   paymentMethods: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    gap: SPACING['2xl'],
     marginBottom: SPACING.md,
   },
   paymentMethod: {
     flex: 1,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
