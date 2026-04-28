@@ -163,11 +163,13 @@ CREATE TABLE sales (
     amount_paid DECIMAL(12,2) DEFAULT 0.00,
     balance_due DECIMAL(12,2) GENERATED ALWAYS AS (total_amount - amount_paid) STORED,
     change_amount DECIMAL(12,2) DEFAULT 0.00,
-    payment_method ENUM('cash', 'credit') DEFAULT 'cash',
+    payment_method ENUM('cash', 'mobile_money', 'bank_transfer', 'credit', 'card') DEFAULT 'cash',
     payment_status ENUM('paid', 'partial', 'unpaid') DEFAULT 'paid',
     payment_reference VARCHAR(100),
     status ENUM('pending', 'completed', 'cancelled', 'refunded') DEFAULT 'completed',
     notes TEXT,
+    is_opening_balance BOOLEAN DEFAULT FALSE,
+    created_by INT NULL,
     sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     cancelled_at TIMESTAMP NULL,
     cancellation_reason TEXT,
@@ -183,7 +185,8 @@ CREATE TABLE sales (
     INDEX idx_sales_status (status),
     INDEX idx_sales_payment_method (payment_method),
     INDEX idx_sales_payment_status (payment_status),
-    INDEX idx_sales_number (sale_number)
+    INDEX idx_sales_number (sale_number),
+    INDEX idx_sales_opening_balance (is_opening_balance)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Sale items table
