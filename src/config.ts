@@ -3,7 +3,7 @@ export const config = {
   // API Configuration
   API_URL: __DEV__
     ? 'http://192.168.1.173:5000/api'
-    : 'https://your-production-api.com/api',
+    : 'https://profsale.dangotechconcepts.com/api',
   API_TIMEOUT: 30000,
 
   // App Configuration

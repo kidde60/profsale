@@ -9,7 +9,7 @@ react {
 }
 
 // Proguard
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 // JSC flavor
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
@@ -37,10 +37,12 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file('profsale-release-key.keystore')
-            storePassword 'william'    // your keystore password
-            keyAlias 'profsale-key'
-            keyPassword 'william'      // your key password
+            if (project.hasProperty('PROFSALE_RELEASE_STORE_FILE')) {
+                storeFile file(PROFSALE_RELEASE_STORE_FILE)
+                storePassword PROFSALE_RELEASE_STORE_PASSWORD
+                keyAlias PROFSALE_RELEASE_KEY_ALIAS
+                keyPassword PROFSALE_RELEASE_KEY_PASSWORD
+            }
         }
     }
 
@@ -50,7 +52,8 @@ android {
         }
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
+            minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
