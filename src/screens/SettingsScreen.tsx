@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Linking,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +34,24 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', style: 'destructive', onPress: logout },
     ]);
+  };
+
+  const handleContactSupport = () => {
+    const whatsappNumber = '256771362017';
+    const whatsappUrl = `whatsapp://send?phone=${whatsappNumber}`;
+
+    Linking.canOpenURL(whatsappUrl)
+      .then(supported => {
+        if (supported) {
+          return Linking.openURL(whatsappUrl);
+        } else {
+          Alert.alert(
+            'WhatsApp Not Available',
+            'Please install WhatsApp to contact support',
+          );
+        }
+      })
+      .catch(err => console.error('Error opening WhatsApp:', err));
   };
 
   // Helper function to check permissions
@@ -102,8 +121,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       title: 'Help & Support',
-      onPress: () =>
-        Alert.alert('Help', 'Contact support@profsale.com for assistance'),
+      onPress: handleContactSupport,
       show: true, // Always show
     },
   ].filter(item => item.show);

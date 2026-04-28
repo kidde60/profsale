@@ -10,7 +10,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Card, Loading, Input, Button } from '../components';
-import staffService, { Permission } from '../services/staffService';
+import staffService from '../services/staffService';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Picker } from '@react-native-picker/picker';
@@ -39,10 +39,6 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('cashier');
-  const [availablePermissions, setAvailablePermissions] = useState<
-    Permission[]
-  >([]);
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     if (isEdit && staffId) {
@@ -51,16 +47,6 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffId, isEdit]);
 
-  const fetchPermissions = async () => {
-    try {
-      const perms = await staffService.getAvailablePermissions();
-      setAvailablePermissions(perms);
-    } catch (error) {
-      console.error('Error fetching permissions:', error);
-      Alert.alert('Error', 'Failed to load permissions');
-    }
-  };
-
   const fetchStaffMember = async () => {
     try {
       const member = await staffService.getStaffMember(staffId);
@@ -68,23 +54,12 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
       setEmail(member.email);
       setPhoneNumber(member.phone_number || '');
       setRole(member.role);
-      setSelectedPermissions(member.permissions);
     } catch (error) {
       console.error('Error fetching staff member:', error);
       Alert.alert('Error', 'Failed to load staff member');
     } finally {
       setLoading(false);
     }
-  };
-
-  const togglePermission = (permissionName: string) => {
-    setSelectedPermissions(prev => {
-      if (prev.includes(permissionName)) {
-        return prev.filter(p => p !== permissionName);
-      } else {
-        return [...prev, permissionName];
-      }
-    });
   };
 
   const handleSubmit = async () => {
@@ -122,7 +97,6 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
         email,
         phone_number: phoneNumber,
         role,
-        permissions: selectedPermissions,
       };
 
       if (!isEdit) {
@@ -152,22 +126,34 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const groupPermissionsByCategory = () => {
-    const grouped: { [key: string]: Permission[] } = {};
-    availablePermissions.forEach(perm => {
-      if (!grouped[perm.category]) {
-        grouped[perm.category] = [];
-      }
-      grouped[perm.category].push(perm);
-    });
-    return grouped;
+  const getRolePermissions = () => {
+    switch (role) {
+      case 'cashier':
+        return ['Can manage inventory (products, sales, customers, expenses)'];
+      case 'manager':
+        return [
+          'Can manage inventory',
+          'Can view reports',
+          'Can manage employees',
+        ];
+      case 'admin':
+        return [
+          'Can manage inventory',
+          'Can view reports',
+          'Can manage employees',
+          'Can manage settings',
+          'Can use API',
+        ];
+      default:
+        return [];
+    }
   };
 
   if (loading) {
     return <Loading message="Loading..." />;
   }
 
-  const groupedPermissions = groupPermissionsByCategory();
+  const rolePermissions = getRolePermissions();
 
   return (
     <ScrollView style={styles.container}>
@@ -230,9 +216,7 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
               >
                 <Picker.Item label="Cashier" value="cashier" />
                 <Picker.Item label="Manager" value="manager" />
-                <Picker.Item label="Inventory Clerk" value="inventory_clerk" />
-                <Picker.Item label="Accountant" value="accountant" />
-                <Picker.Item label="Custom" value="custom" />
+                <Picker.Item label="Admin" value="admin" />
               </Picker>
             </View>
           </View>
@@ -241,34 +225,20 @@ const AddStaffScreen: React.FC<Props> = ({ navigation, route }) => {
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Permissions</Text>
           <Text style={styles.sectionSubtitle}>
-            Select what this staff member can do
+            Permissions are automatically assigned based on role
           </Text>
 
-          {Object.entries(groupedPermissions).map(([category, permissions]) => (
-            <View key={category} style={styles.permissionCategory}>
-              <Text style={styles.categoryTitle}>{category}</Text>
-              {permissions.map(permission => (
-                <TouchableOpacity
-                  key={permission.name}
-                  style={styles.permissionItem}
-                  onPress={() => togglePermission(permission.name)}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      selectedPermissions.includes(permission.name) &&
-                        styles.checkboxChecked,
-                    ]}
-                  >
-                    {selectedPermissions.includes(permission.name) && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </View>
-                  <Text style={styles.permissionLabel}>{permission.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
+          <View style={styles.permissionSummary}>
+            <Text style={styles.summaryLabel}>
+              {role.charAt(0).toUpperCase() + role.slice(1)} Role Permissions:
+            </Text>
+            {rolePermissions.map((permission, index) => (
+              <View key={index} style={styles.permissionListItem}>
+                <Text style={styles.permissionBullet}>•</Text>
+                <Text style={styles.permissionText}>{permission}</Text>
+              </View>
+            ))}
+          </View>
         </Card>
 
         <Button
@@ -362,6 +332,33 @@ const styles = StyleSheet.create({
   permissionLabel: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text,
+  },
+  permissionSummary: {
+    backgroundColor: COLORS.background,
+    padding: SPACING.md,
+    borderRadius: 8,
+  },
+  summaryLabel: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  permissionListItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.xs,
+  },
+  permissionBullet: {
+    color: COLORS.primary,
+    fontSize: 16,
+    marginRight: SPACING.sm,
+    marginTop: 2,
+  },
+  permissionText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text,
+    flex: 1,
   },
   submitButton: {
     marginBottom: SPACING.xl,

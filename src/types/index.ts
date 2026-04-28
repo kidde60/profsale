@@ -8,8 +8,15 @@ export interface User {
   lastName: string;
   businessId?: number;
   businessName?: string;
-  role: string;
-  permissions?: any;
+  role: 'owner' | 'manager' | 'employee' | 'cashier' | 'admin';
+  permissions?: {
+    canViewReports: boolean;
+    canManageInventory: boolean;
+    canManageEmployees: boolean;
+    canManageSettings: boolean;
+    canUseAPI?: boolean;
+    prioritySupport?: boolean;
+  };
   isVerified: boolean;
   isActive?: boolean;
   createdAt?: string;

@@ -14,12 +14,14 @@ export interface AuthUser {
   business_id: number;
   businessName: string;
   business_name: string;
-  role: 'owner' | 'manager' | 'employee';
+  role: 'owner' | 'manager' | 'employee' | 'cashier' | 'admin';
   permissions: {
     canViewReports: boolean;
     canManageInventory: boolean;
     canManageEmployees: boolean;
     canManageSettings: boolean;
+    canUseAPI?: boolean;
+    prioritySupport?: boolean;
   };
 }
 
@@ -95,42 +97,14 @@ export const authenticateToken = async (
         ? staffMember.permissions.split(',')
         : [];
 
-      // Map individual permissions to grouped permission categories
+      // Map permission names to permission object keys
       const permissionsObj = {
-        canViewReports: permissionsArray.some((p: string) =>
-          [
-            'view_reports',
-            'view_dashboard',
-            'view_sales',
-            'view_expenses',
-            'view_customers',
-          ].includes(p),
-        ),
-        canManageInventory: permissionsArray.some((p: string) =>
-          [
-            'create_product',
-            'edit_product',
-            'delete_product',
-            'view_products',
-            'adjust_stock',
-            'create_sale',
-            'edit_sale',
-            'delete_sale',
-            'refund_sale',
-            'create_customer',
-            'edit_customer',
-            'delete_customer',
-            'create_expense',
-            'edit_expense',
-            'delete_expense',
-          ].includes(p),
-        ),
-        canManageEmployees: permissionsArray.includes('manage_staff'),
-        canManageSettings: permissionsArray.some((p: string) =>
-          ['manage_subscription', 'view_settings', 'manage_business'].includes(
-            p,
-          ),
-        ),
+        canViewReports: permissionsArray.includes('canViewReports'),
+        canManageInventory: permissionsArray.includes('canManageInventory'),
+        canManageEmployees: permissionsArray.includes('canManageEmployees'),
+        canManageSettings: permissionsArray.includes('canManageSettings'),
+        canUseAPI: permissionsArray.includes('canUseAPI'),
+        prioritySupport: permissionsArray.includes('prioritySupport'),
       };
 
       req.user = {

@@ -5,13 +5,7 @@ export interface StaffMember {
   name: string;
   email: string;
   phone_number: string;
-  role:
-    | 'owner'
-    | 'manager'
-    | 'cashier'
-    | 'inventory_clerk'
-    | 'accountant'
-    | 'custom';
+  role: 'owner' | 'manager' | 'cashier' | 'admin';
   permissions: string[];
   is_active: boolean;
   created_at: string;
@@ -52,7 +46,6 @@ const staffService = {
     email: string;
     phone_number?: string;
     role: string;
-    permissions: string[];
     password: string;
   }): Promise<StaffMember> => {
     const response = await api.post('/staff', data);
@@ -67,7 +60,6 @@ const staffService = {
       email: string;
       phone_number?: string;
       role: string;
-      permissions: string[];
       is_active?: boolean;
       password?: string;
     },
