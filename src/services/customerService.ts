@@ -72,4 +72,27 @@ export const customerService = {
     );
     return response.data.data;
   },
+
+  // Record opening balance for customer (historical debt)
+  async recordOpeningBalance(
+    customerId: number,
+    data: {
+      amount: number;
+      description: string;
+      date?: string;
+      items: Array<{
+        product_id: number;
+        product_name: string;
+        quantity: number;
+        unit_price: number;
+        total_price: number;
+      }>;
+    },
+  ): Promise<any> {
+    const response = await apiClient.post<ApiResponse>(
+      `/customers/${customerId}/opening-balance`,
+      data,
+    );
+    return response.data.data;
+  },
 };

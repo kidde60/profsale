@@ -875,6 +875,158 @@ router.get(
   },
 );
 
+// Record opening credit balance for a customer (historical debt)
+router.post(
+  '/:id/opening-balance',
+  authenticateToken,
+  requirePermission('create_customer'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.businessId) {
+        res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+        return;
+      }
+      const businessId = req.user.businessId;
+      const userId = req.user.id;
+      const customerId = parseInt(req.params.id as string, 10);
+      const { amount, description, date, items } = req.body;
+
+      if (isNaN(customerId)) {
+        res.status(400).json({
+          success: false,
+          message: 'Valid customer ID is required',
+        });
+        return;
+      }
+
+      if (!amount || parseFloat(amount) <= 0) {
+        res.status(400).json({
+          success: false,
+          message: 'Amount must be greater than 0',
+        });
+        return;
+      }
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'At least one item is required',
+        });
+        return;
+      }
+
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        // Check if customer exists
+        const [customers] = await connection.execute<any[]>(
+          'SELECT id, name FROM customers WHERE id = ? AND business_id = ? AND is_active = TRUE',
+          [customerId, businessId],
+        );
+
+        if (customers.length === 0) {
+          res.status(404).json({
+            success: false,
+            message: 'Customer not found',
+          });
+          await connection.rollback();
+          connection.release();
+          return;
+        }
+
+        const customer = customers[0];
+
+        // Create sale record for the opening balance
+        const saleDate = date || new Date().toISOString().split('T')[0];
+        const [saleResult] = await connection.execute<any>(
+          `INSERT INTO sales 
+          (business_id, customer_id, employee_id, customer_name, customer_phone, 
+           total_amount, amount_paid, discount_amount, tax_amount, sale_date, 
+           payment_method, status, notes, created_by, is_opening_balance)
+          VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?, 'credit', 'pending', ?, ?, TRUE)`,
+          [
+            businessId,
+            customerId,
+            userId,
+            customer.name,
+            null,
+            amount,
+            saleDate,
+            description || `Opening balance for ${customer.name}`,
+            userId,
+          ],
+        );
+
+        const saleId = saleResult.insertId;
+
+        // Create sale items for the opening balance
+        for (const item of items) {
+          const { product_id, product_name, quantity, unit_price, total_price } = item;
+          
+          if (!product_id || !quantity || !unit_price || !total_price) {
+            await connection.rollback();
+            connection.release();
+            res.status(400).json({
+              success: false,
+              message: 'Each item must have product_id, quantity, unit_price, and total_price',
+            });
+            return;
+          }
+
+          await connection.execute(
+            `INSERT INTO sale_items 
+            (sale_id, product_id, product_name, quantity, unit_price, total_price, cost_price)
+            VALUES (?, ?, ?, ?, ?, ?, 0)`,
+            [saleId, product_id, product_name, quantity, unit_price, total_price],
+          );
+        }
+
+        await connection.commit();
+
+        res.status(201).json({
+          success: true,
+          message: 'Opening balance recorded successfully',
+          data: {
+            sale_id: saleId,
+            customer_id: customerId,
+            amount: amount,
+            sale_date: saleDate,
+            description,
+            items_count: items.length,
+          },
+        });
+      } catch (error) {
+        await connection.rollback();
+        console.error('Record opening balance error:', error);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to record opening balance',
+          error:
+            process.env.NODE_ENV === 'development'
+              ? (error as Error).message
+              : undefined,
+        });
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      console.error('Record opening balance error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to record opening balance',
+        error:
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : undefined,
+      });
+    }
+  },
+);
+
 // Helper functions
 function getLoyaltyBenefits(tier: string) {
   const benefits = {
