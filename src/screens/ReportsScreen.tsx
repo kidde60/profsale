@@ -253,10 +253,23 @@ const ReportsScreen: React.FC = () => {
                   -{formatCurrency(report.revenue.totalDiscounts)}
                 </Text>
               </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Expenses</Text>
+                <Text style={[styles.value, styles.discount]}>
+                  -
+                  {formatCurrency(
+                    report.costs.totalExpenses + report.costs.inventoryExpenses,
+                  )}
+                </Text>
+              </View>
               <View style={[styles.row, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Net Revenue</Text>
                 <Text style={styles.totalValue}>
-                  {formatCurrency(report.revenue.netRevenue)}
+                  {formatCurrency(
+                    report.revenue.netRevenue -
+                      (report.costs.totalExpenses +
+                        report.costs.inventoryExpenses),
+                  )}
                 </Text>
               </View>
             </Card>
@@ -265,20 +278,24 @@ const ReportsScreen: React.FC = () => {
             <Card style={styles.section}>
               <Text style={styles.sectionTitle}>Expenses</Text>
               <View style={styles.row}>
-                <Text style={styles.label}>Total Expenses</Text>
+                <Text style={styles.label}>Operational Expenses</Text>
                 <Text style={styles.value}>
                   {formatCurrency(report.costs.totalExpenses)}
                 </Text>
               </View>
               <View style={styles.row}>
-                <Text style={styles.label}>Cost of Goods Sold</Text>
+                <Text style={styles.label}>Inventory / Restock</Text>
                 <Text style={styles.value}>
-                  {formatCurrency(report.costs.costOfGoodsSold)}
+                  {formatCurrency(report.costs.inventoryExpenses)}
                 </Text>
               </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Expense Count</Text>
-                <Text style={styles.value}>{report.costs.expenseCount}</Text>
+              <View style={[styles.row, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Total Expenses</Text>
+                <Text style={styles.totalValue}>
+                  {formatCurrency(
+                    report.costs.totalExpenses + report.costs.inventoryExpenses,
+                  )}
+                </Text>
               </View>
             </Card>
 
@@ -286,14 +303,46 @@ const ReportsScreen: React.FC = () => {
             <Card style={styles.section}>
               <Text style={styles.sectionTitle}>Profit Analysis</Text>
               <View style={styles.row}>
-                <Text style={styles.label}>Gross Profit</Text>
+                <Text style={styles.label}>Net Revenue</Text>
                 <Text style={styles.value}>
+                  {formatCurrency(report.revenue.netRevenue)}
+                </Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Cost of Goods Sold</Text>
+                <Text style={[styles.value, styles.discount]}>
+                  -{formatCurrency(report.costs.costOfGoodsSold)}
+                </Text>
+              </View>
+              <View style={[styles.row, styles.totalRow]}>
+                <Text style={styles.label}>Gross Profit</Text>
+                <Text
+                  style={[
+                    styles.value,
+                    report.profit.grossProfit >= 0
+                      ? styles.profitText
+                      : styles.lossText,
+                  ]}
+                >
                   {formatCurrency(report.profit.grossProfit)}
                 </Text>
               </View>
               <View style={styles.row}>
-                <Text style={styles.label}>Net Profit</Text>
-                <Text style={styles.value}>
+                <Text style={styles.label}>Total Expenses</Text>
+                <Text style={[styles.value, styles.discount]}>
+                  -{formatCurrency(report.costs.totalExpenses)}
+                </Text>
+              </View>
+              <View style={[styles.row, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Net Profit</Text>
+                <Text
+                  style={[
+                    styles.totalValue,
+                    report.profit.netProfit >= 0
+                      ? styles.profitText
+                      : styles.lossText,
+                  ]}
+                >
                   {formatCurrency(report.profit.netProfit)}
                 </Text>
               </View>

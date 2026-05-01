@@ -18,6 +18,7 @@ import { Product } from '../types';
 import { formatCurrency, formatStock } from '../utils/helpers';
 import { canAccessFeature } from '../utils/permissions';
 import { useAuth } from '../context/AuthContext';
+import { handleError } from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -32,6 +33,7 @@ interface Props {
 
 const ProductsScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuth();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,24 +45,52 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
     'create_product',
   );
 
-  const fetchProducts = useCallback(async (searchTerm?: string) => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {};
-      if (searchTerm) {
-        params.search = searchTerm;
-      }
-      const response = await productService.getProducts(params);
+      const response = await productService.getProducts();
       const productsData = Array.isArray(response.data)
         ? response.data
         : (response.data as any)?.products || [];
+      setAllProducts(productsData);
       setProducts(productsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching products:', error);
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.response?.data?.message);
+      if (error.response?.status !== 401) {
+        handleError(error, 'Failed to load products');
+      } else {
+        console.log('Got 401 - user will be logged out by API interceptor');
+      }
+      // Clear products on error
+      setAllProducts([]);
+      setProducts([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
+
+  const handleSearch = (searchTerm: string) => {
+    setSearch(searchTerm);
+    if (!searchTerm.trim()) {
+      setProducts(allProducts);
+      return;
+    }
+
+    // Filter products locally by name, barcode, or description
+    const filtered = allProducts.filter(product => {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        product.name?.toLowerCase().includes(searchLower) ||
+        product.barcode?.toLowerCase().includes(searchLower) ||
+        product.description?.toLowerCase().includes(searchLower)
+      );
+    });
+
+    setProducts(filtered);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -70,7 +100,7 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchProducts(search);
+    fetchProducts();
   };
 
   const renderProduct = ({ item }: { item: Product }) => {
@@ -174,10 +204,7 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.searchContainer}>
         <Input
           value={search}
-          onChangeText={text => {
-            setSearch(text);
-            fetchProducts(text);
-          }}
+          onChangeText={handleSearch}
           placeholder="Search products..."
         />
       </View>
