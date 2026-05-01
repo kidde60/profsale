@@ -12,6 +12,7 @@ import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../constants/theme';
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
+  required?: boolean;
   containerStyle?: ViewStyle;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -20,6 +21,7 @@ interface InputProps extends TextInputProps {
 export const Input: React.FC<InputProps> = ({
   label,
   error,
+  required,
   containerStyle,
   leftIcon,
   rightIcon,
@@ -28,7 +30,12 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && (
+        <Text style={styles.label}>
+          {label}
+          {required && <Text style={styles.requiredAsterisk}>*</Text>}
+        </Text>
+      )}
       <View style={[styles.inputContainer, error && styles.inputError]}>
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
@@ -56,6 +63,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: SPACING.xs,
+  },
+  requiredAsterisk: {
+    color: COLORS.error,
+    fontWeight: 'bold',
+    marginLeft: 2,
   },
   inputContainer: {
     flexDirection: 'row',
