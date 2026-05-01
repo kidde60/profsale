@@ -35,6 +35,9 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     fetchSales();
@@ -81,16 +84,41 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
     setFilteredSales(filtered);
   };
 
-  const fetchSales = async () => {
+  const fetchSales = async (reset = true) => {
     try {
-      const response = await salesService.getSales();
+      if (reset) {
+        setPage(1);
+        setHasMore(true);
+      }
+      const response = await salesService.getSales({
+        page: reset ? 1 : page,
+        limit: 50,
+      });
       const salesData = (response as any)?.data?.sales || response.data || [];
-      setSales(salesData);
+      const total = (response as any)?.data?.pagination?.total || 0;
+
+      if (reset) {
+        setSales(salesData);
+      } else {
+        setSales(prev => [...prev, ...salesData]);
+      }
+      setHasMore(
+        salesData.length >= 50 && sales.length + salesData.length < total,
+      );
     } catch (error) {
       handleError(error, 'Failed to load sales');
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      setPage(prev => prev + 1);
+      fetchSales(false);
     }
   };
 
@@ -215,6 +243,19 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No sales found</Text>
+        }
+        ListFooterComponent={
+          hasMore ? (
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={loadMore}
+              disabled={loadingMore}
+            >
+              <Text style={styles.loadMoreText}>
+                {loadingMore ? 'Loading...' : 'Load More'}
+              </Text>
+            </TouchableOpacity>
+          ) : null
         }
         style={{ flex: 1 }}
       />
@@ -364,6 +405,18 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: TYPOGRAPHY.fontSize.base,
     marginTop: SPACING.xl,
+  },
+  loadMoreButton: {
+    backgroundColor: COLORS.primary,
+    padding: SPACING.md,
+    margin: SPACING.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
   },
 });
 

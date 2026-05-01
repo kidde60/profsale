@@ -53,7 +53,7 @@ export type MainTabParamList = {
 };
 
 export type RootStackParamList = {
-  Back: undefined;
+  Back: { screen?: keyof MainTabParamList } | undefined;
   ProductDetail: { productId: number };
   SaleDetail: { saleId: number };
   CustomerDetail: { customerId: number };
@@ -101,7 +101,12 @@ function AuthNavigator() {
 // Main Tab Navigator
 function MainTabNavigator() {
   const { user } = useAuth();
-  const permissions = user?.permissions || {};
+  const permissions = user?.permissions || {
+    canViewReports: false,
+    canManageInventory: false,
+    canManageEmployees: false,
+    canManageSettings: false,
+  };
   const role = user?.role || '';
 
   console.log('User in MainTabNavigator:', {
@@ -118,15 +123,15 @@ function MainTabNavigator() {
     }
 
     const permissionMap: { [key: string]: boolean } = {
-      dashboard: permissions.canViewReports || false,
-      products: permissions.canManageInventory || false,
-      pos: permissions.canManageInventory || false,
-      sales: permissions.canViewReports || false,
-      reports: permissions.canViewReports || false,
-      expenses: permissions.canViewReports || false,
-      customers: permissions.canViewReports || false,
-      staff: permissions.canManageEmployees || false,
-      settings: permissions.canManageSettings || false,
+      dashboard: permissions?.canViewReports || false,
+      products: permissions?.canManageInventory || false,
+      pos: permissions?.canManageInventory || false,
+      sales: permissions?.canViewReports || false,
+      reports: permissions?.canViewReports || false,
+      expenses: permissions?.canViewReports || false,
+      customers: permissions?.canViewReports || false,
+      staff: permissions?.canManageEmployees || false,
+      settings: permissions?.canManageSettings || false,
     };
 
     const hasAccess = permissionMap[permission] || false;

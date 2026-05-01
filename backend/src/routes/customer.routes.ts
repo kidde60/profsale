@@ -74,9 +74,9 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
            FROM sales s
            WHERE s.customer_id = c.id
            AND s.payment_method = 'credit'
-           AND s.status != 'paid'
            AND s.status != 'refunded'
            AND s.status != 'cancelled'
+           AND s.total_amount > COALESCE(s.amount_paid, 0)
           ), 0
         ) as credit_balance,
         CASE 
@@ -263,6 +263,93 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
     });
   }
 });
+
+// Get customer credit transactions
+router.get(
+  '/:id/credit-transactions',
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.businessId) {
+        res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+        return;
+      }
+      const businessId = req.user.businessId;
+      const customerIdParam = req.params.id;
+
+      if (!customerIdParam) {
+        res.status(400).json({
+          success: false,
+          message: 'Customer ID is required',
+        });
+        return;
+      }
+
+      const customerId = parseInt(customerIdParam, 10);
+
+      if (isNaN(customerId)) {
+        res.status(400).json({
+          success: false,
+          message: 'Valid customer ID is required',
+        });
+        return;
+      }
+
+      // Get credit transactions (unpaid credit sales)
+      const [transactions] = await pool.execute<any[]>(
+        `SELECT
+          s.id,
+          s.sale_number,
+          s.total_amount,
+          s.amount_paid,
+          (s.total_amount - COALESCE(s.amount_paid, 0)) as balance_due,
+          s.sale_date,
+          s.payment_method,
+          s.status
+        FROM sales s
+        WHERE s.customer_id = ?
+          AND s.business_id = ?
+          AND s.payment_method = 'credit'
+          AND s.total_amount > COALESCE(s.amount_paid, 0)
+        ORDER BY s.sale_date DESC`,
+        [customerId, businessId],
+      );
+
+      // Calculate total credit balance
+      const [balanceResult] = await pool.execute<any[]>(
+        `SELECT
+          COALESCE(SUM(s.total_amount - COALESCE(s.amount_paid, 0)), 0) as total_balance
+        FROM sales s
+        WHERE s.customer_id = ?
+          AND s.business_id = ?
+          AND s.payment_method = 'credit'
+          AND s.total_amount > COALESCE(s.amount_paid, 0)`,
+        [customerId, businessId],
+      );
+
+      res.json({
+        success: true,
+        data: {
+          transactions,
+          totalBalance: balanceResult[0].total_balance,
+        },
+      });
+    } catch (error) {
+      console.error('Get credit transactions error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch credit transactions',
+        error:
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : undefined,
+      });
+    }
+  },
+);
 
 // Create new customer
 router.post(

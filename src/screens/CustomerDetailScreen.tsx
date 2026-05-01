@@ -91,13 +91,13 @@ const CustomerDetailScreen: React.FC = () => {
 
   const fetchPendingSales = async () => {
     try {
-      const response = await salesService.getSales({
-        customer_id: customerId,
-        status: 'pending',
-      } as any);
-      setPendingSales(response.data || []);
+      const data = await customerService.getCreditTransactions(customerId);
+      console.log('customerId. ', customerId);
+      console.log('Credit transactions data:', data);
+      console.log('Transactions:', data.transactions);
+      setPendingSales(data.transactions || []);
     } catch (_error) {
-      // Ignore error for now
+      console.error('Failed to fetch credit transactions');
     }
   };
 
@@ -291,31 +291,60 @@ const CustomerDetailScreen: React.FC = () => {
 
         {pendingSales.length > 0 && (
           <Card style={styles.section}>
-            <Text style={styles.title}>Pending Credit Sales</Text>
+            <Text style={styles.title}>Pending Credit Transactions</Text>
             {pendingSales.map(sale => (
-              <View key={sale.id} style={styles.saleRow}>
-                <View style={styles.saleInfo}>
-                  <Text style={styles.saleDate}>
-                    {new Date(sale.sale_date).toLocaleDateString()}
-                  </Text>
-                  <Text style={styles.saleAmount}>
-                    Total: {sale.total_amount} | Paid: {sale.amount_paid} | Due:{' '}
-                    {(sale.total_amount - sale.amount_paid).toFixed(2)}
-                  </Text>
-                  {sale.is_opening_balance && (
-                    <Text style={styles.openingBadge}>Opening Balance</Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={styles.payButton}
-                  onPress={() => {
-                    setSelectedSale(sale);
-                    setShowPaymentModal(true);
-                  }}
-                >
-                  <Text style={styles.payButtonText}>Record Payment</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                key={sale.id}
+                onPress={() =>
+                  (navigation as any).navigate('SaleDetail', {
+                    saleId: sale.id,
+                  })
+                }
+              >
+                <Card style={styles.transactionCard}>
+                  <View style={styles.transactionCardHeader}>
+                    <View style={styles.transactionInfo}>
+                      <Text style={styles.saleNumber}>
+                        Sale #{sale.sale_number || sale.id}
+                      </Text>
+                      <Text style={styles.saleDate}>
+                        {new Date(sale.sale_date).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    <View style={styles.transactionStatusBadge}>
+                      <Text style={styles.transactionStatusText}>Credit</Text>
+                    </View>
+                  </View>
+                  <View style={styles.transactionAmount}>
+                    <Text style={styles.transactionLabel}>Total Amount</Text>
+                    <Text style={styles.transactionValue}>
+                      {parseFloat(String(sale.total_amount)).toFixed(2)}
+                    </Text>
+                    <Text style={styles.transactionLabel}>Amount Paid</Text>
+                    <Text style={styles.transactionValue}>
+                      {parseFloat(String(sale.amount_paid)).toFixed(2)}
+                    </Text>
+                    <Text style={styles.transactionLabel}>Balance Due</Text>
+                    <Text style={styles.transactionBalanceDue}>
+                      {parseFloat(String(sale.balance_due)).toFixed(2)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.payButton}
+                    onPress={e => {
+                      e.stopPropagation();
+                      setSelectedSale(sale);
+                      setPaymentForm(prev => ({
+                        ...prev,
+                        amount: parseFloat(String(sale.balance_due)).toString(),
+                      }));
+                      setShowPaymentModal(true);
+                    }}
+                  >
+                    <Text style={styles.payButtonText}>Pay Balance</Text>
+                  </TouchableOpacity>
+                </Card>
+              </TouchableOpacity>
             ))}
           </Card>
         )}
@@ -634,6 +663,53 @@ const styles = StyleSheet.create({
   saleAmount: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.textSecondary,
+  },
+  saleNumber: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  transactionCard: {
+    marginBottom: SPACING.md,
+  },
+  transactionCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.sm,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionStatusBadge: {
+    backgroundColor: COLORS.warning,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 4,
+  },
+  transactionStatusText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+  },
+  transactionAmount: {
+    marginBottom: SPACING.sm,
+  },
+  transactionLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+  },
+  transactionValue: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  transactionBalanceDue: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: '700',
+    color: COLORS.warning,
   },
   openingBadge: {
     fontSize: TYPOGRAPHY.fontSize.sm,

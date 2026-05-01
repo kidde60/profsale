@@ -189,7 +189,17 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   );
   const [tempSubtotal, setTempSubtotal] = useState('');
 
-  const [editableCart, setEditableCart] = useState(cart);
+  // Round to nearest 100 shillings (since 50 shillings no longer exists)
+  const roundToNearest100 = (value: number): number => {
+    return Math.round(value / 100) * 100;
+  };
+
+  const [editableCart, setEditableCart] = useState(
+    cart.map(item => ({
+      ...item,
+      subtotal: roundToNearest100(item.subtotal),
+    })),
+  );
 
   useEffect(() => {
     fetchCustomers();
@@ -214,24 +224,29 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const calculateTotal = () =>
+    roundToNearest100(
+      editableCart.reduce(
+        (sum, item) => sum + (parseFloat(String(item.subtotal)) || 0),
+        0,
+      ) - (parseFloat(discountAmount) || 0),
+    );
+
+  const calculateActualTotal = () =>
     editableCart.reduce(
       (sum, item) => sum + (parseFloat(String(item.subtotal)) || 0),
       0,
     ) - (parseFloat(discountAmount) || 0);
 
   const calculateSubtotal = () =>
-    editableCart.reduce(
-      (sum, item) => sum + (parseFloat(String(item.subtotal)) || 0),
-      0,
+    roundToNearest100(
+      editableCart.reduce(
+        (sum, item) => sum + (parseFloat(String(item.subtotal)) || 0),
+        0,
+      ),
     );
 
   const calculateChange = () =>
     (parseFloat(amountTendered) || 0) - calculateTotal();
-
-  // Round to nearest 100 shillings (since 50 shillings no longer exists)
-  const roundToNearest100 = (value: number): number => {
-    return Math.round(value / 100) * 100;
-  };
 
   const updateQty = (productId: number) => {
     const qty = parseFloat(tempQty);
@@ -347,6 +362,12 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
       }
     }
 
+    // For credit sales, ensure customer_id is set
+    if (paymentMethod === 'credit' && !customerId) {
+      handleWarning('Credit sales must be linked to a customer');
+      return;
+    }
+
     try {
       setProcessing(true);
       await salesService.createSale({
@@ -373,9 +394,8 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
       });
       handleSuccess('Sale completed successfully');
       setTimeout(() => {
-        navigation.popToTop();
-        navigation.getParent()?.navigate('POS', { clearCart: true });
-      }, 1000);
+        navigation.navigate('Back', { screen: 'Sales' });
+      }, 500);
     } catch (e) {
       handleError(e, 'Failed to complete sale');
     } finally {

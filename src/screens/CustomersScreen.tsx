@@ -128,7 +128,7 @@ const CustomersScreen: React.FC<Props> = ({ navigation }) => {
           text: 'View Sales',
           onPress: () => {
             // Navigate to sales filtered by this customer
-            navigation.navigate('Sales' as never);
+            (navigation as any).navigate('Back', { screen: 'Sales' });
           },
         },
       ],
@@ -151,28 +151,25 @@ const CustomersScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.customerStats}>
               {item.total_orders} orders • {item.loyalty_points} points
             </Text>
-            {item.credit_balance && item.credit_balance > 0 && (
-              <View style={styles.creditBalanceContainer}>
-                <Text style={styles.creditBalanceLabel}>Credit Balance:</Text>
-                <Text style={styles.creditBalanceValue}>
-                  {formatCurrency(item.credit_balance)}
-                </Text>
-              </View>
-            )}
+            <View style={styles.creditBalanceContainer}>
+              <Text style={styles.creditBalanceLabel}>Credit Balance:</Text>
+              <Text
+                style={[
+                  styles.creditBalanceValue,
+                  item.credit_balance && item.credit_balance > 0
+                    ? styles.creditBalancePositive
+                    : styles.creditBalanceZero,
+                ]}
+              >
+                {formatCurrency(item.credit_balance || 0)}
+              </Text>
+            </View>
           </View>
           <View style={styles.customerAmount}>
             <Text style={styles.amountLabel}>Total Spent</Text>
             <Text style={styles.amountValue}>
               {formatCurrency(item.total_purchases)}
             </Text>
-            {item.credit_balance && item.credit_balance > 0 && (
-              <TouchableOpacity
-                style={styles.payButton}
-                onPress={() => handlePayCredit(item)}
-              >
-                <Text style={styles.payButtonText}>Pay</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
       </Card>
@@ -338,6 +335,12 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: '600',
     color: COLORS.warning,
+  },
+  creditBalancePositive: {
+    color: COLORS.warning,
+  },
+  creditBalanceZero: {
+    color: COLORS.textSecondary,
   },
   payButton: {
     backgroundColor: COLORS.primary,

@@ -95,4 +95,12 @@ export const customerService = {
     );
     return response.data.data;
   },
+
+  // Get customer credit transactions
+  async getCreditTransactions(customerId: number): Promise<any> {
+    const response = await apiClient.get<ApiResponse>(
+      `/customers/${customerId}/credit-transactions`,
+    );
+    return response.data.data;
+  },
 };

@@ -65,15 +65,11 @@ const POSScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch products and clear cart when screen is focused after a sale
+  // Fetch products whenever the screen is focused
   useFocusEffect(
     useCallback(() => {
       fetchProducts();
-      if (route.params?.clearCart) {
-        setCart([]);
-        navigation.setParams({ clearCart: undefined } as any);
-      }
-    }, [route.params?.clearCart]),
+    }, []),
   );
 
   useEffect(() => {
@@ -207,6 +203,7 @@ const POSScreen: React.FC = () => {
       cart: cart,
       total: calculateTotal(),
     });
+    setCart([]);
   };
 
   const clearCart = () => {
