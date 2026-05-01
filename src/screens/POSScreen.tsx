@@ -24,7 +24,11 @@ import { Card, Button, Input, Loading } from '../components';
 import { productService } from '../services/productService';
 import { Product } from '../types';
 import { formatCurrency, formatStock } from '../utils/helpers';
-import { handleError, handleSuccess } from '../utils/errorHandler';
+import {
+  handleError,
+  handleSuccess,
+  handleWarning,
+} from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 
@@ -61,20 +65,18 @@ const POSScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch products whenever the screen is focused
+  // Fetch products and clear cart when screen is focused after a sale
   useFocusEffect(
     useCallback(() => {
       fetchProducts();
-    }, []),
+      if (route.params?.clearCart) {
+        setCart([]);
+        navigation.setParams({ clearCart: undefined } as any);
+      }
+    }, [route.params?.clearCart]),
   );
 
   useEffect(() => {
-    // Clear cart when returning from successful checkout
-    if (route.params?.clearCart) {
-      setCart([]);
-      // Reset navigation params
-      navigation.setParams({ clearCart: undefined } as any);
-    }
     if (search.trim()) {
       const filtered = products.filter(
         p =>
@@ -106,7 +108,7 @@ const POSScreen: React.FC = () => {
     const stock = product.current_stock ?? product.quantity_in_stock ?? 0;
 
     if (stock <= 0) {
-      Alert.alert('Out of Stock', `${product.name} is out of stock`);
+      handleWarning(`${product.name} is out of stock`);
       return;
     }
 
@@ -114,7 +116,7 @@ const POSScreen: React.FC = () => {
 
     if (existingItem) {
       if (existingItem.quantity >= stock) {
-        Alert.alert('Insufficient Stock', `Only ${stock} units available`);
+        handleWarning(`Only ${stock} units available`);
         return;
       }
       updateQuantity(product.id, existingItem.quantity + 1);
@@ -197,7 +199,7 @@ const POSScreen: React.FC = () => {
 
   const handleCheckout = () => {
     if (cart.length === 0) {
-      Alert.alert('Empty Cart', 'Please add items to cart before checkout');
+      handleWarning('Please add items to cart before checkout');
       return;
     }
     setShowCartModal(false);
@@ -205,6 +207,21 @@ const POSScreen: React.FC = () => {
       cart: cart,
       total: calculateTotal(),
     });
+  };
+
+  const clearCart = () => {
+    Alert.alert(
+      'Clear Cart',
+      'Are you sure you want to clear all items from the cart?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => setCart([]),
+        },
+      ],
+    );
   };
 
   const renderCartItem = ({ item }: { item: CartItem }) => {
@@ -441,6 +458,12 @@ const POSScreen: React.FC = () => {
                 </Text>
                 <Text style={styles.cartStatLabel}>Total</Text>
               </View>
+              <TouchableOpacity
+                onPress={clearCart}
+                style={styles.clearCartButton}
+              >
+                <Text style={styles.clearCartText}>Clear</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -589,6 +612,19 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  clearCartButton: {
+    backgroundColor: COLORS.error,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border || '#E0E0E0',
+  },
+  clearCartText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+    color: COLORS.white,
   },
   searchSection: {
     padding: SPACING.md,

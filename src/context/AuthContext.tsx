@@ -39,20 +39,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     // No cleanup needed, as handler can be overwritten
   }, []);
 
-  // Force logout on mount to clear any stale auth data from production
-  useEffect(() => {
-    const forceLogout = async () => {
-      try {
-        await authService.logout();
-        setUser(null);
-        console.log('Force logout: Cleared stale auth data');
-      } catch (error) {
-        console.error('Error during force logout:', error);
-      }
-    };
-    forceLogout();
-  }, []);
-
   const loadUser = async () => {
     try {
       const storedUser = await authService.getStoredUser();
