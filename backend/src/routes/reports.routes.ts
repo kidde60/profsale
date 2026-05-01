@@ -62,7 +62,7 @@ router.get(
         [businessId, startDate, endDate],
       );
 
-      // Get expenses
+      // Get operational expenses only (exclude Inventory/restock expenses as they are covered by COGS)
       const [expensesResult] = await pool.execute<any[]>(
         `SELECT 
         COUNT(*) as total_expense_count,
@@ -70,11 +70,25 @@ router.get(
       FROM expenses
       WHERE business_id = ?
         AND expense_date >= ?
-        AND expense_date <= ?`,
+        AND expense_date <= ?
+        AND category != 'Inventory'`,
         [businessId, startDate, endDate],
       );
 
-      // Get expenses by category
+      // Get inventory/restock expenses separately (covered by COGS, shown for info only)
+      const [inventoryExpensesResult] = await pool.execute<any[]>(
+        `SELECT 
+        COUNT(*) as total_expense_count,
+        SUM(amount) as total_expenses
+      FROM expenses
+      WHERE business_id = ?
+        AND expense_date >= ?
+        AND expense_date <= ?
+        AND category = 'Inventory'`,
+        [businessId, startDate, endDate],
+      );
+
+      // Get all expenses by category (for display breakdown)
       const [expensesByCategory] = await pool.execute<any[]>(
         `SELECT 
         category,
@@ -92,13 +106,14 @@ router.get(
       const revenue = revenueResult[0];
       const cogs = cogsResult[0].cost_of_goods_sold || 0;
       const expenses = expensesResult[0];
+      const inventoryExpenses = inventoryExpensesResult[0];
 
       const totalRevenue = parseFloat(revenue.total_revenue || 0);
       const totalCOGS = parseFloat(cogs);
-      const totalExpenses = parseFloat(expenses.total_expenses || 0);
+      const totalOperationalExpenses = parseFloat(expenses.total_expenses || 0);
 
       const grossProfit = totalRevenue - totalCOGS;
-      const netProfit = grossProfit - totalExpenses;
+      const netProfit = grossProfit - totalOperationalExpenses;
       const grossProfitMargin =
         totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
       const netProfitMargin =
@@ -120,8 +135,10 @@ router.get(
           },
           costs: {
             costOfGoodsSold: totalCOGS,
-            totalExpenses: totalExpenses,
+            totalExpenses: totalOperationalExpenses,
             expenseCount: expenses.total_expense_count || 0,
+            inventoryExpenses: parseFloat(inventoryExpenses.total_expenses || 0),
+            inventoryExpenseCount: inventoryExpenses.total_expense_count || 0,
           },
           profit: {
             grossProfit: grossProfit,
