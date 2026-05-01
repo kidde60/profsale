@@ -55,6 +55,8 @@ export const productService = {
     id: number,
     quantity: number,
     reason?: string,
+    costPrice?: number,
+    sellingPrice?: number,
   ): Promise<any> {
     // If offline, update local storage
     if (!networkService.isNetworkAvailable()) {
@@ -62,16 +64,23 @@ export const productService = {
       if (localProduct) {
         const currentStock = parseFloat(String(localProduct.current_stock || '0')) || 0;
         const newStock = currentStock + quantity;
-        await localStorageService.updateProduct(id, { current_stock: newStock });
+        const updateData: any = { current_stock: newStock };
+        if (costPrice !== undefined) updateData.buying_price = costPrice;
+        if (sellingPrice !== undefined) updateData.selling_price = sellingPrice;
+        await localStorageService.updateProduct(id, updateData);
         return { productId: id, previousQuantity: localProduct.current_stock, quantityAdded: quantity, newQuantity: newStock };
       }
       throw new Error('Product not found in local storage');
     }
 
     // If online, call API
+    const payload: any = { quantity, reason };
+    if (costPrice !== undefined) payload.cost_price = costPrice;
+    if (sellingPrice !== undefined) payload.selling_price = sellingPrice;
+    
     const response = await apiClient.post<ApiResponse<any>>(
       `/products/${id}/restock`,
-      { quantity, reason },
+      payload,
     );
     return response.data.data;
   },

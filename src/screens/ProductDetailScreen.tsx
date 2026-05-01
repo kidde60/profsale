@@ -19,7 +19,12 @@ import { Card, Button, Input, Loading } from '../components';
 import { productService } from '../services/productService';
 import { Product } from '../types';
 import { formatCurrency, formatStock } from '../utils/helpers';
-import { handleError, handleSuccess } from '../utils/errorHandler';
+import {
+  handleError,
+  handleSuccess,
+  handleWarning,
+  showToast,
+} from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import {
@@ -51,6 +56,8 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [restockQuantity, setRestockQuantity] = useState('');
   const [restockReason, setRestockReason] = useState('');
+  const [restockCostPrice, setRestockCostPrice] = useState('');
+  const [restockSellingPrice, setRestockSellingPrice] = useState('');
   const [restocking, setRestocking] = useState(false);
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [damageQuantity, setDamageQuantity] = useState('');
@@ -93,7 +100,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         productImage: data.product_image || '',
       });
     } catch {
-      Alert.alert('Error', 'Failed to load product');
+      handleError(null, 'Failed to load product');
     } finally {
       setLoading(false);
     }
@@ -123,15 +130,12 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       await productService.updateProduct(productId, updateData);
 
-      Alert.alert('Success', 'Product updated successfully');
+      handleSuccess('Product updated successfully');
+      setTimeout(() => navigation.goBack(), 1000);
       setIsEditing(false);
-      await fetchProduct();
     } catch (error: any) {
       console.error('Error updating product:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to update product',
-      );
+      handleError(error, 'Failed to update product');
     } finally {
       setSaving(false);
     }
@@ -149,18 +153,11 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           onPress: async () => {
             try {
               await productService.deleteProduct(productId);
-              Alert.alert('Success', 'Product deleted successfully', [
-                {
-                  text: 'OK',
-                  onPress: () => navigation.goBack(),
-                },
-              ]);
+              handleSuccess('Product deleted successfully');
+              setTimeout(() => navigation.goBack(), 1000);
             } catch (error: any) {
               console.error('Error deleting product:', error);
-              Alert.alert(
-                'Error',
-                error.response?.data?.message || 'Failed to delete product',
-              );
+              handleError(error, 'Failed to delete product');
             }
           },
         },
@@ -171,22 +168,33 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleRestock = async () => {
     const quantity = parseFloat(restockQuantity);
     if (!quantity || quantity <= 0) {
-      Alert.alert('Error', 'Please enter a valid quantity');
+      handleWarning('Please enter a valid quantity');
       return;
     }
 
     try {
       setRestocking(true);
+      const costPrice = restockCostPrice
+        ? parseFloat(restockCostPrice)
+        : undefined;
+      const sellingPrice = restockSellingPrice
+        ? parseFloat(restockSellingPrice)
+        : undefined;
+
       await productService.restockProduct(
         productId,
         quantity,
         restockReason.trim() || undefined,
+        costPrice,
+        sellingPrice,
       );
       handleSuccess('Product restocked successfully');
       setShowRestockModal(false);
       setRestockQuantity('');
       setRestockReason('');
-      await fetchProduct();
+      setRestockCostPrice('');
+      setRestockSellingPrice('');
+      setTimeout(() => navigation.goBack(), 1000);
     } catch (error) {
       handleError(error, 'Failed to restock product');
     } finally {
@@ -197,7 +205,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleDamage = async () => {
     const quantity = parseFloat(damageQuantity);
     if (!quantity || quantity <= 0) {
-      Alert.alert('Error', 'Please enter a valid quantity');
+      handleWarning('Please enter a valid quantity');
       return;
     }
 
@@ -217,7 +225,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       setDamageQuantity('');
       setDamageReason('');
       setDamageType('damage');
-      await fetchProduct();
+      setTimeout(() => navigation.goBack(), 1000);
     } catch (error) {
       handleError(error, 'Failed to record damage/expiry');
     } finally {
@@ -254,10 +262,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleImagePicker = async () => {
     const hasPermission = await requestGalleryPermission();
     if (!hasPermission) {
-      Alert.alert(
-        'Permission Denied',
-        'Please grant gallery permission to select images',
-      );
+      handleWarning('Please grant gallery permission to select images');
       return;
     }
 
@@ -276,7 +281,7 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         }
 
         if (response.errorCode) {
-          Alert.alert('Error', 'Failed to pick image');
+          handleError(null, 'Failed to pick image');
           return;
         }
 
@@ -289,8 +294,8 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       });
     } catch (error) {
       console.error('Image picker error:', error);
-      Alert.alert(
-        'Error',
+      handleError(
+        null,
         'Image picker is not available. Please rebuild the app.',
       );
     }
@@ -516,7 +521,8 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               )}
 
               <Input
-                label="Product Name *"
+                label="Product Name"
+                required
                 value={formData.name}
                 onChangeText={value => updateField('name', value)}
                 placeholder="Enter product name"
@@ -664,13 +670,34 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>Quantity</Text>
-              <TextInput
-                style={styles.input}
+              <Input
+                label="Quantity"
+                required
                 placeholder="Enter quantity"
                 value={restockQuantity}
                 onChangeText={setRestockQuantity}
                 keyboardType="numeric"
                 autoFocus
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Input
+                label="Buying price (Optinal)"
+                placeholder="Enter cost price"
+                value={restockCostPrice}
+                onChangeText={setRestockCostPrice}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Input
+                label="Selling price (Optional)"
+                placeholder="Enter selling price"
+                value={restockSellingPrice}
+                onChangeText={setRestockSellingPrice}
+                keyboardType="decimal-pad"
               />
             </View>
 
