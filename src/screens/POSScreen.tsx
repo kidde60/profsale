@@ -11,6 +11,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   useNavigation,
@@ -88,13 +89,37 @@ const POSScreen: React.FC = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
+      // Try to load from cache first
+      const cachedProducts = await AsyncStorage.getItem('cached_products');
+      if (cachedProducts) {
+        const parsedProducts = JSON.parse(cachedProducts);
+        setProducts(parsedProducts);
+      }
+
+      // Fetch fresh data from API
       const response = await productService.getProducts({});
       const productsData = Array.isArray(response.data)
         ? response.data
         : (response.data as any)?.products || [];
       setProducts(productsData);
+
+      // Cache the products
+      await AsyncStorage.setItem(
+        'cached_products',
+        JSON.stringify(productsData),
+      );
     } catch (error) {
       handleError(error, 'Failed to load products');
+      // Try to load from cache if API fails
+      try {
+        const cachedProducts = await AsyncStorage.getItem('cached_products');
+        if (cachedProducts) {
+          const parsedProducts = JSON.parse(cachedProducts);
+          setProducts(parsedProducts);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
     }

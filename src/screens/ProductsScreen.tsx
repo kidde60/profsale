@@ -10,6 +10,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, Loading, Input, Button } from '../components';
@@ -48,20 +49,40 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
+      // Try to load from cache first
+      const cachedProducts = await AsyncStorage.getItem('cached_products');
+      if (cachedProducts) {
+        const parsedProducts = JSON.parse(cachedProducts);
+        setAllProducts(parsedProducts);
+        setProducts(parsedProducts);
+      }
+
+      // Fetch fresh data from API
       const response = await productService.getProducts();
       const productsData = Array.isArray(response.data)
         ? response.data
         : (response.data as any)?.products || [];
       setAllProducts(productsData);
       setProducts(productsData);
+
+      // Cache the products
+      await AsyncStorage.setItem(
+        'cached_products',
+        JSON.stringify(productsData),
+      );
     } catch (error: any) {
       console.error('Error fetching products:', error);
-      console.error('Error status:', error.response?.status);
-      console.error('Error message:', error.response?.data?.message);
-      if (error.response?.status !== 401) {
-        handleError(error, 'Failed to load products');
-      } else {
-        console.log('Got 401 - user will be logged out by API interceptor');
+      handleError(error, 'Failed to load products');
+      // Try to load from cache if API fails
+      try {
+        const cachedProducts = await AsyncStorage.getItem('cached_products');
+        if (cachedProducts) {
+          const parsedProducts = JSON.parse(cachedProducts);
+          setAllProducts(parsedProducts);
+          setProducts(parsedProducts);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
       }
       // Clear products on error
       setAllProducts([]);
