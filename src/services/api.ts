@@ -3,12 +3,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { networkService } from './networkService';
 
+declare const __DEV__: boolean;
+
 let globalLogoutHandler: null | (() => void) = null;
 export function setGlobalLogoutHandler(handler: () => void) {
   globalLogoutHandler = handler;
 }
+
 const API_URL = __DEV__
-  ? 'http://192.168.1.173:5000/api'
+  ? 'http://localhost:6000/api'
   : 'https://profsale.dangotechconcepts.com/api';
 
 const apiClient: AxiosInstance = axios.create({
@@ -22,8 +25,13 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   async config => {
     const token = await AsyncStorage.getItem('authToken');
+    console.log('Request interceptor - Token:', token ? 'Present' : 'Missing');
+    console.log('Request URL:', config.url);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Authorization header set');
+    } else {
+      console.log('No token found in AsyncStorage');
     }
     return config;
   },
@@ -66,9 +74,18 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
+      console.log('Got 401 error');
+      const errorMessage = (error.response?.data as any)?.message;
+      console.log('Error message:', errorMessage);
+      
+      // Always logout on 401
+      console.log('Clearing auth tokens and logging out');
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('user');
-      if (globalLogoutHandler) globalLogoutHandler();
+      if (globalLogoutHandler) {
+        console.log('Calling global logout handler');
+        globalLogoutHandler();
+      }
     }
 
     console.log('API error:', error.response?.status, error.response?.data);
