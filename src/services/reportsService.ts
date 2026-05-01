@@ -16,6 +16,8 @@ export interface ProfitLossReport {
     costOfGoodsSold: number;
     totalExpenses: number;
     expenseCount: number;
+    inventoryExpenses: number;
+    inventoryExpenseCount: number;
   };
   profit: {
     grossProfit: number;
