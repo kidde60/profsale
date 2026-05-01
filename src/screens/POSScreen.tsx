@@ -96,8 +96,8 @@ const POSScreen: React.FC = () => {
         setProducts(parsedProducts);
       }
 
-      // Fetch fresh data from API
-      const response = await productService.getProducts({});
+      // Fetch fresh data from API with all=true to get all products
+      const response = await productService.getProducts({ all: true });
       const productsData = Array.isArray(response.data)
         ? response.data
         : (response.data as any)?.products || [];

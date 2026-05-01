@@ -57,8 +57,8 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
         setProducts(parsedProducts);
       }
 
-      // Fetch fresh data from API
-      const response = await productService.getProducts();
+      // Fetch fresh data from API with all=true to get all products
+      const response = await productService.getProducts({ all: true });
       const productsData = Array.isArray(response.data)
         ? response.data
         : (response.data as any)?.products || [];
@@ -84,12 +84,8 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
       } catch (cacheError) {
         console.error('Failed to load from cache:', cacheError);
       }
-      // Clear products on error
-      setAllProducts([]);
-      setProducts([]);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 

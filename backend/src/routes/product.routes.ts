@@ -10,9 +10,10 @@ const router = Router();
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = req.user?.businessId;
+    const fetchAll = req.query.all === 'true';
     const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
-    const offset = (page - 1) * limit;
+    const limit = fetchAll ? 10000 : Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
+    const offset = fetchAll ? 0 : (page - 1) * limit;
 
     // Filters
     const search = req.query.search as string;

@@ -216,6 +216,7 @@ export interface PaginationParams {
   search?: string;
   sortBy?: string;
   order?: 'asc' | 'desc';
+  all?: boolean;
 }
 
 export interface PaginatedResponse<T> {
