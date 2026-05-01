@@ -16,6 +16,11 @@ import { salesService } from '../services/salesService';
 import { customerService } from '../services/customerService';
 import { Customer } from '../types';
 import { formatCurrency } from '../utils/helpers';
+import {
+  handleError,
+  handleSuccess,
+  handleWarning,
+} from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../context/AuthContext';
@@ -231,18 +236,16 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   const updateQty = (productId: number) => {
     const qty = parseFloat(tempQty);
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert('Invalid Quantity', 'Please enter a valid quantity');
+      handleWarning('Please enter a valid quantity');
       return;
     }
 
-    // Check if quantity exceeds available stock
     const item = editableCart.find(i => i.product.id === productId);
     if (item) {
       const availableStock =
         item.product.current_stock || item.product.quantity_in_stock || 0;
       if (qty > availableStock) {
-        Alert.alert(
-          'Insufficient Stock',
+        handleWarning(
           `Only ${availableStock} units available. Please reduce the quantity.`,
         );
         return;
@@ -265,7 +268,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   const updateRate = (productId: number) => {
     const rate = parseFloat(tempRate);
     if (isNaN(rate) || rate <= 0) {
-      Alert.alert('Invalid Price', 'Please enter a valid price');
+      handleWarning('Please enter a valid price');
       return;
     }
     setEditableCart(prev =>
@@ -284,7 +287,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
   const updateSubtotal = (productId: number) => {
     const sub = parseFloat(tempSubtotal);
     if (isNaN(sub) || sub <= 0) {
-      Alert.alert('Invalid Subtotal', 'Please enter a valid subtotal');
+      handleWarning('Please enter a valid subtotal');
       return;
     }
     const roundedSubtotal = roundToNearest100(sub);
@@ -309,27 +312,21 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const confirmSale = async () => {
     if (paymentMethod === 'cash' && calculateChange() < 0) {
-      Alert.alert('Insufficient Payment', 'Amount tendered is less than total');
+      handleWarning('Amount tendered is less than total');
       return;
     }
     if (paymentMethod === 'credit') {
       if (customerType === 'existing' && !selectedCustomer) {
-        Alert.alert(
-          'Customer Required',
-          'Credit sales must be linked to a customer',
-        );
+        handleWarning('Credit sales must be linked to a customer');
         return;
       }
       if (customerType === 'new' && !customerName.trim()) {
-        Alert.alert(
-          'Customer Required',
-          'Please enter customer name for credit sales',
-        );
+        handleWarning('Please enter customer name for credit sales');
         return;
       }
     }
     if (customerType === 'existing' && !selectedCustomer) {
-      Alert.alert('Customer Required', 'Please select a customer');
+      handleWarning('Please select a customer');
       return;
     }
 
@@ -345,7 +342,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
         });
         customerId = newCustomer.id;
       } catch (e) {
-        Alert.alert('Error', 'Failed to create customer. Please try again.');
+        handleError(e, 'Failed to create customer. Please try again.');
         return;
       }
     }
@@ -374,25 +371,13 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
             ? parseFloat(amountTendered)
             : undefined,
       });
-      Alert.alert('Success', 'Sale completed successfully', [
-        {
-          text: 'OK',
-          onPress: () =>
-            navigation.reset({
-              index: 0,
-              routes: [
-                {
-                  name: 'Back',
-                  state: {
-                    routes: [{ name: 'POS', params: { clearCart: true } }],
-                  },
-                },
-              ],
-            }),
-        },
-      ]);
+      handleSuccess('Sale completed successfully');
+      setTimeout(() => {
+        navigation.popToTop();
+        navigation.getParent()?.navigate('POS', { clearCart: true });
+      }, 1000);
     } catch (e) {
-      Alert.alert('Error', 'Failed to complete sale');
+      handleError(e, 'Failed to complete sale');
     } finally {
       setProcessing(false);
     }
