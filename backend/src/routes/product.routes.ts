@@ -687,7 +687,7 @@ router.get(
 router.post('/:id/restock', authenticateToken, async (req: Request, res: Response) => {
   const businessId = req.user?.businessId;
   const productId = parseInt(req.params.id as string, 10);
-  const { quantity, reason, costAmount } = req.body;
+  const { quantity, reason, costAmount, cost_price, selling_price } = req.body;
   const userId = req.user?.id;
 
   if (!businessId || !userId) {
@@ -710,9 +710,9 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
   try {
     await connection.beginTransaction();
 
-    // Get current product stock and cost price
+    // Get current product stock and buying price
     const [products] = await connection.execute<any[]>(
-      'SELECT id, current_stock, cost_price, buying_price, name FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
+      'SELECT id, current_stock, buying_price, selling_price, name FROM products WHERE id = ? AND business_id = ? AND is_active = TRUE',
       [productId, businessId],
     );
 
@@ -732,10 +732,27 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
     const newQuantity = previousQuantity + quantity;
     console.log('Previous quantity:', previousQuantity, 'Quantity to add:', quantity, 'New quantity:', newQuantity);
 
-    // Update product stock
+    // Build update query based on provided prices
+    let updateQuery = 'UPDATE products SET current_stock = ?';
+    const updateParams: any[] = [newQuantity];
+    
+    if (cost_price !== undefined && cost_price !== null) {
+      updateQuery += ', buying_price = ?';
+      updateParams.push(cost_price);
+    }
+    
+    if (selling_price !== undefined && selling_price !== null) {
+      updateQuery += ', selling_price = ?';
+      updateParams.push(selling_price);
+    }
+    
+    updateQuery += ', updated_at = NOW() WHERE id = ?';
+    updateParams.push(productId);
+
+    // Update product stock and prices if provided
     const [updateResult] = await connection.execute(
-      'UPDATE products SET current_stock = ?, updated_at = NOW() WHERE id = ?',
-      [newQuantity, productId],
+      updateQuery,
+      updateParams,
     );
     console.log('Stock update result:', updateResult);
 
