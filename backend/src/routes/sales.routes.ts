@@ -43,6 +43,7 @@ router.post(
         taxRate = 0,
         notes,
         amountPaid,
+        total: frontendTotal,
       } = req.body;
 
       // Validation
@@ -152,7 +153,10 @@ router.post(
         });
 
         const taxAmount = subtotal * (taxRate || 0);
-        const totalAmount = subtotal + taxAmount - (discountAmount || 0);
+        // Use frontend total if provided (already rounded), otherwise calculate from items
+        const totalAmount = frontendTotal != null
+          ? parseFloat(frontendTotal)
+          : subtotal + taxAmount - (discountAmount || 0);
 
         // Determine amount paid and status
         let actualAmountPaid = 0;
