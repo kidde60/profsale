@@ -53,6 +53,7 @@ export const corsOptions = {
       'http://localhost:8081',
       'http://localhost:19006',
       'https://profsale.dangotechconcepts.com',
+      '*'
     ];
 
     // Allow requests with no origin (like mobile apps or curl requests)
