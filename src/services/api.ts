@@ -11,7 +11,7 @@ export function setGlobalLogoutHandler(handler: () => void) {
 }
 
 const API_URL = __DEV__
-  ? 'http://localhost:6000/api'
+  ? 'https://profsale.dangotechconcepts.com/api'
   : 'https://profsale.dangotechconcepts.com/api';
 
 const apiClient: AxiosInstance = axios.create({

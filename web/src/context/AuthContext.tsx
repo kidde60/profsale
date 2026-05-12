@@ -23,7 +23,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,8 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
-    const response = await apiClient.post('/auth/login', { email, password });
+  const login = async (login: string, password: string) => {
+    const response = await apiClient.post('/auth/login', { login, password });
     localStorage.setItem('token', response.data.token);
     setUser(response.data.user);
   };

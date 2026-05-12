@@ -28,7 +28,7 @@ import subscriptionRoutes from './routes/subscription.routes';
 import { performHealthCheck, simpleHealthCheck, readinessCheck, livenessCheck } from './utils/healthCheck';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 const env = process.env.NODE_ENV || 'development';
 
 // Basic security middleware
@@ -46,11 +46,8 @@ app.use(
   }),
 );
 
-// CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-  'http://localhost:3000',
-  'http://localhost:8081',
-];
+// CORS configuration - Allow all origins for production deployment
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['*'];
 
 app.use(
   cors({
@@ -243,7 +240,7 @@ const startServer = async (): Promise<void> => {
     console.log('✅ Database connected successfully');
 
     // Start server
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Prof Sale API server running on port ${PORT}`);
       console.log(`📊 Environment: ${env}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
