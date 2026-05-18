@@ -34,6 +34,7 @@ router.post(
 
       const {
         customerId,
+        customer_id,
         customerName,
         customerPhone,
         items,
@@ -46,11 +47,23 @@ router.post(
         total: frontendTotal,
       } = req.body;
 
+      // Use customer_id if provided (snake_case from frontend), fallback to customerId
+      const finalCustomerId = customer_id || customerId;
+
       // Validation
       if (!items || !Array.isArray(items) || items.length === 0) {
         res.status(400).json({
           success: false,
           message: 'At least one item is required for sale',
+        });
+        return;
+      }
+
+      // Validate credit sales must have a customer
+      if (paymentMethod === 'credit' && !finalCustomerId) {
+        res.status(400).json({
+          success: false,
+          message: 'Credit sales must be linked to a customer. Customer ID is required.',
         });
         return;
       }
@@ -189,7 +202,7 @@ router.post(
           [
             businessId,
             employeeId,
-            customerId || null,
+            finalCustomerId || null,
             saleNumber,
             customerName || null,
             customerPhone || null,
@@ -232,14 +245,14 @@ router.post(
         }
 
         // 8. Update customer totals if customer exists
-        if (customerId) {
+        if (finalCustomerId) {
           await connection.execute(
             `UPDATE customers 
           SET total_purchases = total_purchases + ?, 
               total_orders = total_orders + 1,
               last_purchase_date = CURRENT_TIMESTAMP 
           WHERE id = ? AND business_id = ?`,
-            [totalAmount, customerId, businessId],
+            [totalAmount, finalCustomerId, businessId],
           );
         }
 

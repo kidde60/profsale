@@ -391,7 +391,7 @@ const CheckoutScreen: React.FC<Props> = ({ navigation, route }) => {
           paymentMethod === 'credit' && amountTendered
             ? parseFloat(amountTendered)
             : undefined,
-      });
+      } as any);
       handleSuccess('Sale completed successfully');
       setTimeout(() => {
         navigation.navigate('Back', { screen: 'Sales' });
