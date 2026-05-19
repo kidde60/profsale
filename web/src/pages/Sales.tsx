@@ -13,13 +13,6 @@ interface Product {
   barcode?: string;
 }
 
-interface CartItem {
-  product: Product;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-}
-
 interface Customer {
   id: number;
   name: string;
@@ -50,15 +43,8 @@ const Sales: React.FC = () => {
   const [showSalesHistory, setShowSalesHistory] = useState(false);
   const [sales, setSales] = useState<Sale[]>([]);
 
-  const {
-    cart,
-    addToCart,
-    removeFromCart,
-    updateQuantity,
-    clearCart,
-    getCartTotal,
-    getCartCount,
-  } = useCart();
+  const { cart, addToCart, removeFromCart, updateQuantity, clearCart } =
+    useCart();
 
   useEffect(() => {
     fetchData();
