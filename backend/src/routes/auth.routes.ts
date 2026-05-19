@@ -199,13 +199,13 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({
-        success: true,
-        message: 'Login Reached',
-        data: {
-         'Api Response': 'Login ----- proceed',
-        },
-      });
+    // res.json({
+    //     success: true,
+    //     message: 'Login Reached',
+    //     data: {
+    //      'Api Response': 'Login ----- proceed',
+    //     },
+    //   });
 
     // First, try to find as a regular user (business owner)
     const [users] = await pool.execute<any[]>(
