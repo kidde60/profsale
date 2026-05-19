@@ -35,6 +35,7 @@ import StaffScreen from '../screens/StaffScreen';
 import AddStaffScreen from '../screens/AddStaffScreen';
 import RestockReportScreen from '../screens/RestockReportScreen';
 import StockRecordsScreen from '../screens/StockRecordsScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 
 // Navigation types
 export type AuthStackParamList = {
@@ -59,6 +60,7 @@ export type RootStackParamList = {
   CustomerDetail: { customerId: number };
   Customers: undefined;
   Settings: undefined;
+  PrivacyPolicy: undefined;
   AddProduct: undefined;
   Checkout: {
     cart: Array<{
@@ -243,6 +245,11 @@ function RootNavigator() {
         name="Settings"
         component={SettingsScreen}
         options={{ title: 'Settings' }}
+      />
+      <RootStack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ title: 'Privacy Policy' }}
       />
       <RootStack.Screen
         name="AddProduct"
