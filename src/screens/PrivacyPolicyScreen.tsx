@@ -180,7 +180,7 @@ const PrivacyPolicyScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </Section>
 
-        <Section title="12. Contact Us">
+        <Section title="12. Contact Us & Data Deletion Requests">
           <Text style={styles.text}>
             If you have questions about this Privacy Policy or our privacy
             practices, please contact us:
@@ -197,6 +197,23 @@ const PrivacyPolicyScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
             <Text style={styles.contactText}>Location: Kampala, Uganda</Text>
           </View>
+
+          <Text style={[styles.text, { marginTop: 16, fontWeight: '600' }]}>
+            Request Account & Data Deletion:
+          </Text>
+          <Text style={styles.text}>
+            To request deletion of your account and all associated data, please
+            email us at{' '}
+          </Text>
+          <TouchableOpacity onPress={handleContactEmail}>
+            <Text style={styles.contactLink}>profsaleug@gmail.com</Text>
+          </TouchableOpacity>
+          <Text style={styles.text}>
+            {' '}
+            with the subject line "Data Deletion Request" and include your
+            account email address. We will process your request within 30 days
+            in accordance with applicable data protection laws.
+          </Text>
         </Section>
 
         <Section title="13. Compliance">

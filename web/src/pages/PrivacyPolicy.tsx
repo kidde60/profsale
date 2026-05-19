@@ -299,7 +299,7 @@ const PrivacyPolicy: React.FC = () => {
         </section>
 
         <section>
-          <h2>13. Contact Us</h2>
+          <h2>13. Contact Us & Data Deletion Requests</h2>
           <p>
             If you have questions about this Privacy Policy or our privacy
             practices, please contact us using the information below:
@@ -312,6 +312,22 @@ const PrivacyPolicy: React.FC = () => {
             <p>Phone: +256771362017</p>
             <p>Address: Kampala, Uganda</p>
           </div>
+          <p style={{ marginTop: '20px' }}>
+            <strong>Request Account & Data Deletion:</strong>
+          </p>
+          <p>
+            To request deletion of your account and all associated data, please
+            email us at{' '}
+            <a
+              href="mailto:profsaleug@gmail.com?subject=Data%20Deletion%20Request"
+              style={{ color: '#007bff', textDecoration: 'none' }}
+            >
+              profsaleug@gmail.com
+            </a>{' '}
+            with the subject line "Data Deletion Request" and include your
+            account email address. We will process your request within 30 days
+            in accordance with applicable data protection laws.
+          </p>
         </section>
 
         <section>

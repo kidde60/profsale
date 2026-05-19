@@ -100,6 +100,7 @@ Can be integrated into the main Layout to provide:
 ✅ Cookie usage
 ✅ International compliance
 ✅ Contact information
+✅ Data deletion request process (30-day SLA)
 
 ### Terms of Service Covers:
 
