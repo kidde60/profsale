@@ -263,8 +263,10 @@ export async function performHealthCheck(): Promise<HealthCheckResult> {
  * Simple health check endpoint (for load balancers)
  */
 export async function simpleHealthCheck(): Promise<{ status: string; timestamp: string }> {
+  let connection;
   try {
-    await pool.getConnection();
+    connection = await pool.getConnection();
+    await connection.ping();
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -274,6 +276,10 @@ export async function simpleHealthCheck(): Promise<{ status: string; timestamp: 
       status: 'error',
       timestamp: new Date().toISOString(),
     };
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 }
 
@@ -285,11 +291,17 @@ export async function readinessCheck(): Promise<{ ready: boolean; checks: any }>
     database: false,
   };
   
+  let connection;
   try {
-    await pool.getConnection();
+    connection = await pool.getConnection();
+    await connection.ping();
     checks.database = true;
   } catch {
       logger.error('Error checking database health');
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
   
   const ready = Object.values(checks).every(Boolean);
