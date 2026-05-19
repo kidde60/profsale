@@ -199,6 +199,14 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
+    res.json({
+        success: true,
+        message: 'Login Reached',
+        data: {
+         'Api Response': 'Login ----- proceed',
+        },
+      });
+
     // First, try to find as a regular user (business owner)
     const [users] = await pool.execute<any[]>(
       `SELECT 
@@ -396,9 +404,10 @@ router.post('/login', async (req: Request, res: Response) => {
       success: false,
       message: 'Login failed',
       error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
+        // process.env.NODE_ENV === 'development'
+        //   ? (error as Error).message
+        //   : undefined,
+        (error as Error).message
     });
   }
 });
