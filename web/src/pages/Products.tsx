@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { productService } from '../api/products';
-import { useCart } from '../context/CartContext';
 
 interface Product {
   id: number;
@@ -30,7 +29,6 @@ const Products: React.FC = () => {
     cost_price: '',
     min_stock: '0',
   });
-  const { addToCart } = useCart();
 
   useEffect(() => {
     fetchProducts();

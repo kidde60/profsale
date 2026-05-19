@@ -124,6 +124,11 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       onPress: handleContactSupport,
       show: true, // Always show
     },
+    {
+      title: 'Privacy Policy',
+      onPress: () => navigation.navigate('PrivacyPolicy'),
+      show: true, // Always show
+    },
   ].filter(item => item.show);
 
   return (
