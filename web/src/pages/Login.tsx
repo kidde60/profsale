@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Login: React.FC = () => {
@@ -68,6 +68,24 @@ const Login: React.FC = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+        <div className="mt-6 pt-6 border-t border-gray-200 text-center text-sm text-gray-600">
+          <p>
+            By logging in, you agree to our{' '}
+            <Link
+              to="/privacy-policy"
+              className="text-blue-600 hover:underline"
+            >
+              Privacy Policy
+            </Link>{' '}
+            and{' '}
+            <Link
+              to="/terms-of-service"
+              className="text-blue-600 hover:underline"
+            >
+              Terms of Service
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
