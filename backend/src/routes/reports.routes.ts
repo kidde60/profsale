@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
+import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -151,14 +152,7 @@ router.get(
       });
     } catch (error) {
       console.error('Profit & loss report error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to generate profit & loss report',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to generate profit & loss report', getErrorMessage(error));
     }
   },
 );
@@ -269,14 +263,7 @@ router.get('/trend', authenticateToken, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Trend report error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to generate trend report',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to generate trend report', getErrorMessage(error));
   }
 });
 
@@ -336,14 +323,7 @@ router.get(
       });
     } catch (error) {
       console.error('Top products report error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to generate top products report',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to generate top products report', getErrorMessage(error));
     }
   },
 );

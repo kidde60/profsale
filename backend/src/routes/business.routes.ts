@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { requirePermission } from '../middleware/permissions';
 import logger from '../utils/logger';
+import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -84,14 +85,7 @@ router.get(
       });
     } catch (error) {
       console.error('Get business profile error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch business profile',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch business profile', getErrorMessage(error));
     }
   },
 );
@@ -273,14 +267,7 @@ router.get(
       });
     } catch (error) {
       console.error('Get business settings error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch business settings',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch business settings', getErrorMessage(error));
     }
   },
 );
@@ -338,14 +325,7 @@ router.put(
       });
     } catch (error) {
       console.error('Update business settings error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update business settings',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to update business settings', getErrorMessage(error));
     }
   },
 );
@@ -380,14 +360,7 @@ router.get('/hours', authenticateToken, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get business hours error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch business hours',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to fetch business hours', getErrorMessage(error));
   }
 });
 
@@ -449,14 +422,7 @@ router.put(
       });
     } catch (error) {
       console.error('Update business hours error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update business hours',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to update business hours', getErrorMessage(error));
     }
   },
 );
@@ -496,14 +462,7 @@ router.get(
       });
     } catch (error) {
       console.error('Get receipt templates error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch receipt templates',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch receipt templates', getErrorMessage(error));
     }
   },
 );
@@ -581,14 +540,7 @@ router.post(
       });
     } catch (error) {
       console.error('Create receipt template error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create receipt template',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to create receipt template', getErrorMessage(error));
     }
   },
 );
@@ -726,14 +678,7 @@ router.put(
       });
     } catch (error) {
       console.error('Update receipt template error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update receipt template',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to update receipt template', getErrorMessage(error));
     }
   },
 );
@@ -764,14 +709,7 @@ router.get(
       });
     } catch (error) {
       console.error('Get tax configurations error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch tax configurations',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch tax configurations', getErrorMessage(error));
     }
   },
 );
@@ -835,14 +773,7 @@ router.post(
       });
     } catch (error) {
       console.error('Create tax configuration error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create tax configuration',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to create tax configuration', getErrorMessage(error));
     }
   },
 );
@@ -988,14 +919,7 @@ router.put(
       });
     } catch (error) {
       console.error('Update payment methods error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update payment methods',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to update payment methods', getErrorMessage(error));
     }
   },
 );
@@ -1075,14 +999,7 @@ router.put(
       });
     } catch (error) {
       console.error('Update notification preferences error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update notification preferences',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to update notification preferences', getErrorMessage(error));
     }
   },
 );
@@ -1144,14 +1061,7 @@ router.get(
       });
     } catch (error) {
       console.error('Get business performance error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch business performance',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch business performance', getErrorMessage(error));
     }
   },
 );

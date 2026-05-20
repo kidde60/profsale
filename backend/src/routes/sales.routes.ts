@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
+import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -298,15 +299,8 @@ router.post(
       }
     } catch (error) {
       console.error('Create sale error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to process sale',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
-    }
+      sendErrorResponse(res, 500, 'Failed to process sale', getErrorMessage(error));
+    }  
   },
 );
 
@@ -412,14 +406,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get sales error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch sales',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to fetch sales', getErrorMessage(error));
   }
 });
 
@@ -501,14 +488,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get sale error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch sale',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to fetch sale', getErrorMessage(error));
   }
 });
 
@@ -586,14 +566,7 @@ router.get(
       });
     } catch (error) {
       console.error('Daily sales report error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to generate daily sales report',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to generate daily sales report', getErrorMessage(error));
     }
   },
 );
@@ -718,14 +691,7 @@ router.put(
       }
     } catch (error) {
       console.error('Cancel sale error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to cancel sale',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to cancel sale', getErrorMessage(error));
     }
   },
 );
@@ -833,14 +799,7 @@ router.get(
       });
     } catch (error) {
       console.error('Sales analytics error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to generate sales analytics',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to generate sales analytics', getErrorMessage(error));
     }
   },
 );
@@ -933,14 +892,7 @@ router.get(
       });
     } catch (error) {
       console.error('Generate receipt error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to generate receipt',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to generate receipt', getErrorMessage(error));
     }
   },
 );
@@ -1067,14 +1019,7 @@ router.post(
     } catch (error) {
       await connection.rollback();
       console.error('Record payment error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to record payment',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to record payment', getErrorMessage(error));
     } finally {
       connection.release();
     }
@@ -1139,14 +1084,7 @@ router.get('/reports/refunds', authenticateToken, async (req: Request, res: Resp
     });
   } catch (error) {
     console.error('Get refund reports error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get refund reports',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to get refund reports', getErrorMessage(error));
   } finally {
     connection.release();
   }
@@ -1301,14 +1239,7 @@ router.post(
     } catch (error) {
       await connection.rollback();
       console.error('Refund sale error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to refund sale',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to refund sale', getErrorMessage(error));
     } finally {
       connection.release();
     }

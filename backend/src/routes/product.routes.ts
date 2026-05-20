@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
+import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -111,14 +112,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get products error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch products',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to fetch products', getErrorMessage(error));
   }
 });
 
@@ -177,14 +171,56 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get product error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch product',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
+    sendErrorResponse(res, 500, 'Failed to fetch product', getErrorMessage(error));
+  }
+});
+
+// Get single product by barcode
+router.get('/barcode/:barcode', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const businessId = req.user?.businessId;
+    const barcode = req.params.barcode;
+
+    if (!barcode) {
+      res.status(400).json({
+        success: false,
+        message: 'Barcode is required',
+      });
+      return;
+    }
+
+    const [products] = await pool.execute<any[]>(
+      `SELECT 
+        p.*, c.name as category_name,
+        CASE 
+          WHEN p.current_stock = 0 THEN 'out'
+          WHEN p.current_stock <= p.min_stock_level THEN 'low'
+          ELSE 'normal'
+        END as stock_status,
+        ROUND(((p.selling_price - p.buying_price) / p.buying_price) * 100, 2) as profit_margin
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.barcode = ? AND p.business_id = ? AND p.is_active = TRUE`,
+      [barcode, businessId],
+    );
+
+    if (products.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        product: products[0],
+      },
     });
+  } catch (error) {
+    console.error('Get product error:', error);
+    sendErrorResponse(res, 500, 'Failed to search product by barcode', getErrorMessage(error));
   }
 });
 
@@ -353,14 +389,7 @@ router.post(
       }
     } catch (error) {
       console.error('Create product error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create product',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to create product', getErrorMessage(error));
     }
   },
 );
@@ -507,14 +536,7 @@ router.put(
       });
     } catch (error) {
       console.error('Update product error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update product',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to update product', getErrorMessage(error));
     }
   },
 );
@@ -573,14 +595,7 @@ router.delete(
       });
     } catch (error) {
       console.error('Delete product error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to delete product',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to delete product', getErrorMessage(error));
     }
   },
 );
@@ -613,14 +628,7 @@ router.get(
       });
     } catch (error) {
       console.error('Get categories error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch categories',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch categories', getErrorMessage(error));
     }
   },
 );
@@ -672,14 +680,7 @@ router.get(
       });
     } catch (error) {
       console.error('Barcode search error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to search product by barcode',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to search product by barcode', getErrorMessage(error));
     }
   },
 );
@@ -802,11 +803,7 @@ router.post('/:id/restock', authenticateToken, async (req: Request, res: Respons
   } catch (error) {
     await connection.rollback();
     console.error('Restock error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to restock product',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to restock product', getErrorMessage(error));
   } finally {
     connection.release();
   }

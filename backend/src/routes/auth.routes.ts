@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/database';
 import { emailService } from '../utils/emailService';
+import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -58,14 +59,6 @@ const validatePassword = (password: string): { valid: boolean; message?: string 
     return { valid: false, message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` };
   }
   return { valid: true };
-};
-
-const sendErrorResponse = (res: Response, statusCode: number, message: string, error?: string): void => {
-  res.status(statusCode).json({
-    success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && error && { error }),
-  });
 };
 
 // User Registration
@@ -195,8 +188,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('Registration error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    sendErrorResponse(res, 500, 'Registration failed', errorMessage);
+    sendErrorResponse(res, 500, 'Registration failed', getErrorMessage(error));
   }
 });
 
@@ -345,8 +337,7 @@ router.post('/login', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    sendErrorResponse(res, 500, 'Login failed', errorMessage);
+    sendErrorResponse(res, 500, 'Login failed', getErrorMessage(error));
   }
 });
 
@@ -417,8 +408,7 @@ router.get('/profile', async (req: Request, res: Response) => {
       return;
     }
 
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    sendErrorResponse(res, 500, 'Failed to get profile', errorMessage);
+    sendErrorResponse(res, 500, 'Failed to get profile', getErrorMessage(error));
   }
 });
 
@@ -476,8 +466,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Forgot password error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    sendErrorResponse(res, 500, 'Failed to process request', errorMessage);
+    sendErrorResponse(res, 500, 'Failed to process request', getErrorMessage(error));
   }
 });
 
@@ -549,8 +538,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Reset password error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    sendErrorResponse(res, 500, 'Failed to reset password', errorMessage);
+    sendErrorResponse(res, 500, 'Failed to reset password', getErrorMessage(error));
   }
 });
 

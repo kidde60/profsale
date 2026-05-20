@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
+import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -195,15 +196,8 @@ router.get(
         },
       });
     } catch (error) {
-      console.error('Dashboard overview error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch dashboard overview',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      console.error('Get dashboard overview error:', error);
+      sendErrorResponse(res, 500, 'Failed to fetch dashboard overview', getErrorMessage(error));
     }
   },
 );
@@ -287,15 +281,8 @@ router.get(
         },
       });
     } catch (error) {
-      console.error('Dashboard trends error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch trends data',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      console.error('Get trends error:', error);
+      sendErrorResponse(res, 500, 'Failed to fetch trends data', getErrorMessage(error));
     }
   },
 );
@@ -488,15 +475,8 @@ router.get(
         },
       });
     } catch (error) {
-      console.error('Dashboard metrics error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch business metrics',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      console.error('Get metrics error:', error);
+      sendErrorResponse(res, 500, 'Failed to fetch business metrics', getErrorMessage(error));
     }
   },
 );
@@ -630,15 +610,8 @@ router.get(
         },
       });
     } catch (error) {
-      console.error('Dashboard alerts error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch alerts',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      console.error('Get alerts error:', error);
+      sendErrorResponse(res, 500, 'Failed to fetch alerts', getErrorMessage(error));
     }
   },
 );
@@ -705,15 +678,8 @@ router.get(
         data: stats,
       });
     } catch (error) {
-      console.error('Quick stats error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch quick stats',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      console.error('Get quick stats error:', error);
+      sendErrorResponse(res, 500, 'Failed to fetch quick stats', getErrorMessage(error));
     }
   },
 );

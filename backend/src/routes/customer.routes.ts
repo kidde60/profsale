@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
+import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -125,14 +126,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get customers error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch customers',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? (error as Error).message
-          : undefined,
-    });
+    sendErrorResponse(res, 500, 'Failed to fetch customers', getErrorMessage(error));
   }
 });
 
@@ -339,14 +333,7 @@ router.get(
       });
     } catch (error) {
       console.error('Get credit transactions error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch credit transactions',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch credit transactions', getErrorMessage(error));
     }
   },
 );
@@ -442,14 +429,7 @@ router.post(
       });
     } catch (error) {
       console.error('Create customer error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create customer',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to create customer', getErrorMessage(error));
     }
   },
 );
@@ -580,14 +560,7 @@ router.put(
       });
     } catch (error) {
       console.error('Update customer error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update customer',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to update customer', getErrorMessage(error));
     }
   },
 );
@@ -673,14 +646,7 @@ router.delete(
       }
     } catch (error) {
       console.error('Delete customer error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to delete customer',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to delete customer', getErrorMessage(error));
     }
   },
 );
@@ -732,14 +698,7 @@ router.get(
       });
     } catch (error) {
       console.error('Search customers error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to search customers',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to search customers', getErrorMessage(error));
     }
   },
 );
@@ -845,19 +804,11 @@ router.get(
             tier,
             benefits: getLoyaltyBenefits(tier),
           },
-          recommendations: getCustomerRecommendations(customer),
         },
       });
     } catch (error) {
       console.error('Customer loyalty error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch customer loyalty data',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch customer loyalty', getErrorMessage(error));
     }
   },
 );
@@ -950,14 +901,7 @@ router.get(
       });
     } catch (error) {
       console.error('Customer analytics error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch customer analytics',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to fetch customer analytics', getErrorMessage(error));
     }
   },
 );
@@ -1102,14 +1046,7 @@ router.post(
       }
     } catch (error) {
       console.error('Record opening balance error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to record opening balance',
-        error:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      });
+      sendErrorResponse(res, 500, 'Failed to record opening balance', getErrorMessage(error));
     }
   },
 );
