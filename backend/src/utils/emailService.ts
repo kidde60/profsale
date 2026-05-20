@@ -247,7 +247,7 @@ class EmailService {
                 <li>Go to the Login screen</li>
                 <li>Tap "Forgot Password?"</li>
                 <li>Enter your phone number or email</li>
-                <li>Enter the reset code above: <strong>${resetCode}</strong></li>
+                <li>Enter the reset code
                 <li>Create your new password</li>
                 <li>Log in with your new password</li>
               </ol>

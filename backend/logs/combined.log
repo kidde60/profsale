@@ -225,3 +225,6 @@
 {"level":"info","message":"Email service is ready to send emails","service":"prof-sale-api","timestamp":"2026-05-20T07:10:40.047Z"}
 {"level":"info","message":"Email service is ready to send emails","service":"prof-sale-api","timestamp":"2026-05-20T07:25:03.860Z"}
 {"level":"info","message":"Email sent successfully: <2d1d0169-7a79-c86a-057d-b6539706529e@profsale.com>","service":"prof-sale-api","timestamp":"2026-05-20T07:32:50.848Z"}
+{"level":"info","message":"Email service is ready to send emails","service":"prof-sale-api","timestamp":"2026-05-20T07:36:36.149Z"}
+{"level":"info","message":"Email sent successfully: <a0c7d078-0d8d-b3c0-a863-e4f873676294@profsale.com>","service":"prof-sale-api","timestamp":"2026-05-20T07:36:41.555Z"}
+{"level":"info","message":"Email sent successfully: <54bc2b58-4ad2-3389-2ec2-e03c2ee1e957@profsale.com>","service":"prof-sale-api","timestamp":"2026-05-20T07:37:29.512Z"}
