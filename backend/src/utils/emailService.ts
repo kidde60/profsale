@@ -70,10 +70,20 @@ class EmailService {
   async sendPasswordResetEmail(
     email: string,
     firstName: string,
-    resetToken: string,
+    resetCode: string,
   ): Promise<boolean> {
     const subject = 'Reset Your ProfSale Password';
-    const html = this.getPasswordResetTemplate(firstName, resetToken);
+    const html = this.getPasswordResetTemplate(firstName, resetCode);
+    return this.sendEmail({ to: email, subject, html });
+  }
+
+  // Password reset confirmation email
+  async sendPasswordResetConfirmation(
+    email: string,
+    firstName: string,
+  ): Promise<boolean> {
+    const subject = 'Your Password Has Been Reset Successfully';
+    const html = this.getPasswordResetConfirmationTemplate(firstName);
     return this.sendEmail({ to: email, subject, html });
   }
 
@@ -178,11 +188,8 @@ class EmailService {
 
   private getPasswordResetTemplate(
     firstName: string,
-    resetToken: string,
+    resetCode: string,
   ): string {
-    // In production, this should be your actual app URL
-    const resetUrl = `${process.env.APP_URL || 'http://localhost:19006'}/reset-password?token=${resetToken}`;
-
     return `
       <!DOCTYPE html>
       <html>
@@ -192,9 +199,30 @@ class EmailService {
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background-color: #FF9800; color: white; padding: 20px; text-align: center; }
           .content { padding: 20px; background-color: #f9f9f9; }
-          .button { display: inline-block; padding: 12px 30px; background-color: #FF9800; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .reset-code-box { 
+            background-color: #fff3cd; 
+            border: 2px solid #FF9800; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            text-align: center;
+          }
+          .reset-code { 
+            font-size: 32px; 
+            font-weight: bold; 
+            color: #FF9800; 
+            letter-spacing: 4px; 
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+          }
+          .instructions { 
+            background-color: #f0f0f0; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 15px 0;
+          }
           .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; }
-          .warning { background-color: #fff3cd; border-left: 4px solid #FF9800; padding: 10px; margin: 15px 0; }
+          .warning { background-color: #ffebee; border-left: 4px solid #f44336; padding: 10px; margin: 15px 0; }
         </style>
       </head>
       <body>
@@ -204,19 +232,118 @@ class EmailService {
           </div>
           <div class="content">
             <h2>Hi ${firstName},</h2>
-            <p>We received a request to reset your ProfSale password.</p>
-            <p>Click the button below to reset your password:</p>
-            <a href="${resetUrl}" class="button">Reset Password</a>
-            <p>Or copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #0066cc;">${resetUrl}</p>
-            <div class="warning">
-              <strong>Note:</strong> This password reset link will expire in 1 hour.
+            <p>We received a request to reset your ProfSale password. Use the code below in the ProfSale mobile app to reset your password.</p>
+            
+            <div class="reset-code-box">
+              <p style="margin: 0; color: #333; font-size: 14px;"><strong>Your Reset Code:</strong></p>
+              <div class="reset-code">${resetCode}</div>
+              <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">This code will expire in 1 hour</p>
             </div>
+
+            <div class="instructions">
+              <h3 style="margin-top: 0;">How to reset your password:</h3>
+              <ol style="text-align: left;">
+                <li>Open the ProfSale mobile app</li>
+                <li>Go to the Login screen</li>
+                <li>Tap "Forgot Password?"</li>
+                <li>Enter your phone number or email</li>
+                <li>Enter the reset code above: <strong>${resetCode}</strong></li>
+                <li>Create your new password</li>
+                <li>Log in with your new password</li>
+              </ol>
+            </div>
+
+            <div class="warning">
+              <strong>⚠️ Security Notice:</strong> Never share this code with anyone. ProfSale support will never ask for this code.
+            </div>
+
             <p>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
             <p>Best regards,<br>The ProfSale Team</p>
           </div>
           <div class="footer">
             <p>&copy; ${new Date().getFullYear()} ProfSale. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private getPasswordResetConfirmationTemplate(firstName: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f9f9f9; }
+          .success-box { 
+            background-color: #e8f5e9; 
+            border: 2px solid #4CAF50; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            text-align: center;
+          }
+          .success-icon { font-size: 48px; margin-bottom: 10px; }
+          .security-tips { 
+            background-color: #f0f0f0; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 15px 0;
+          }
+          .security-tips ul { margin: 10px 0; padding-left: 20px; }
+          .security-tips li { margin: 8px 0; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #777; }
+          .warning { background-color: #fff3cd; border-left: 4px solid #FF9800; padding: 10px; margin: 15px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Password Reset Successful!</h1>
+          </div>
+          <div class="content">
+            <h2>Hi ${firstName},</h2>
+            
+            <div class="success-box">
+              <div class="success-icon">✅</div>
+              <h3 style="margin: 10px 0; color: #4CAF50;">Your password has been reset successfully!</h3>
+              <p style="margin: 0; color: #666;">You can now log in with your new password.</p>
+            </div>
+
+            <p>Your ProfSale account password was successfully changed. If you did not make this change, please contact our support team immediately.</p>
+
+            <div class="security-tips">
+              <h3 style="margin-top: 0;">Security Tips:</h3>
+              <ul>
+                <li>✓ Use a strong, unique password with uppercase, lowercase, numbers, and symbols</li>
+                <li>✓ Never share your password with anyone, including ProfSale support</li>
+                <li>✓ Log out from other devices if you suspect unauthorized access</li>
+                <li>✓ Enable two-factor authentication for additional security (coming soon)</li>
+                <li>✓ Change your password periodically for better security</li>
+              </ul>
+            </div>
+
+            <div class="warning">
+              <strong>⚠️ Suspicious Activity?</strong> If you didn't reset your password, please contact our support team immediately at <strong>profsaleug@gmail.com</strong> or call <strong>+256771362017</strong>.
+            </div>
+
+            <h3>What's Next?</h3>
+            <ol>
+              <li>Open the ProfSale mobile app</li>
+              <li>Log in with your phone number/email and new password</li>
+              <li>Start managing your business</li>
+            </ol>
+
+            <p>If you have any questions or need assistance, feel free to reach out to our support team.</p>
+            <p>Best regards,<br>The ProfSale Team</p>
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} ProfSale. All rights reserved.</p>
+            <p>Contact: profsaleug@gmail.com | Phone: +256771362017</p>
           </div>
         </div>
       </body>

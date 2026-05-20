@@ -429,11 +429,8 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     );
 
     if (users.length === 0) {
-      // Don't reveal if user exists for security
-      res.json({
-        success: true,
-        message: 'If an account exists, a reset code has been sent',
-      });
+      // Return 404 if user not found - frontend will handle this
+      sendErrorResponse(res, 404, 'Email or phone number not found');
       return;
     }
 
@@ -489,7 +486,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
     // Find user
     const [users] = await pool.execute<any[]>(
-      'SELECT id FROM users WHERE (email = ? OR phone = ?) AND is_active = TRUE',
+      'SELECT id, email, first_name FROM users WHERE (email = ? OR phone = ?) AND is_active = TRUE',
       [contact, contact],
     );
 
@@ -499,6 +496,8 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     }
 
     const userId = users[0].id;
+    const userEmail = users[0].email;
+    const firstName = users[0].first_name;
 
     // Verify reset code
     const [resets] = await pool.execute<any[]>(
@@ -531,6 +530,11 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
     // Mark reset code as used
     await pool.execute('UPDATE password_resets SET is_used = TRUE WHERE id = ?', [reset.id]);
+
+    // Send password reset confirmation email
+    if (userEmail) {
+      await emailService.sendPasswordResetConfirmation(userEmail, firstName);
+    }
 
     res.json({
       success: true,

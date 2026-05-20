@@ -11,8 +11,8 @@ export function setGlobalLogoutHandler(handler: () => void) {
 }
 
 const API_URL = 
-'https://profsale.dangotechconcepts.com/api'
-// 'http://localhost:3000/api'
+// 'https://profsale.dangotechconcepts.com/api'
+'http://localhost:8080/api'
 // __DEV__
 //   ? 'https://profsale.dangotechconcepts.com/api'
 //   : 'https://profsale.dangotechconcepts.com/api';

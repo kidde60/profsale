@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -36,6 +37,8 @@ const ResetPasswordScreen: React.FC<Props> = ({ navigation, route }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleResetPassword = async () => {
     if (!resetCode || !newPassword || !confirmPassword) {
@@ -106,7 +109,16 @@ const ResetPasswordScreen: React.FC<Props> = ({ navigation, route }) => {
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="Enter new password"
-              secureTextEntry
+              secureTextEntry={!showNewPassword}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                >
+                  <Text style={styles.eyeIcon}>
+                    {showNewPassword ? '🙈' : '👁️'}
+                  </Text>
+                </TouchableOpacity>
+              }
             />
 
             <Input
@@ -114,7 +126,16 @@ const ResetPasswordScreen: React.FC<Props> = ({ navigation, route }) => {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm new password"
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Text style={styles.eyeIcon}>
+                    {showConfirmPassword ? '🙈' : '👁️'}
+                  </Text>
+                </TouchableOpacity>
+              }
             />
 
             <Button
@@ -175,6 +196,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: SPACING.lg,
+  },
+  eyeIcon: {
+    fontSize: 20,
+    paddingHorizontal: SPACING.xs,
   },
 });
 
