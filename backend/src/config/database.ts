@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import mysql, { PoolOptions } from 'mysql2/promise';
 import dotenv from 'dotenv';
 
@@ -19,6 +20,7 @@ const dbConfig: PoolOptions = {
 
 const inlineCa = process.env.CA_CERT;
 const sslCertPath = process.env.CA;
+const bundledCertPath = path.resolve(process.cwd(), 'certs', 'isrgrootx1.pem');
 
 const resolveCertificate = (): string | undefined => {
   if (inlineCa) {
@@ -31,6 +33,12 @@ const resolveCertificate = (): string | undefined => {
     } catch (error) {
       console.warn(`⚠️  Unable to load CA certificate from ${sslCertPath}.`);
     }
+  }
+
+  try {
+    return fs.readFileSync(bundledCertPath, 'utf8');
+  } catch (error) {
+    console.warn(`⚠️  Bundled CA certificate not found at ${bundledCertPath}.`);
   }
 
   return undefined;
