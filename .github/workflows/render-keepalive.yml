@@ -1,0 +1,28 @@
+name: Render Keepalive Ping
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+env:
+  CURL_OPTS: --silent --show-error --max-time 10 --fail --location
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure ping URL is configured
+        env:
+          PING_URL: ${{ secrets.RENDER_PING_URL }}
+        run: |
+          if [ -z "${PING_URL}" ]; then
+            echo "Missing ping URL. Add a repository secret named RENDER_PING_URL."
+            exit 1
+          fi
+      - name: Ping Render service
+        env:
+          PING_URL: ${{ secrets.RENDER_PING_URL }}
+        run: |
+          echo "Pinging ${PING_URL}"
+          curl $CURL_OPTS --user-agent "GitHubActionsKeepalive/1.0" "${PING_URL}" > /dev/null
