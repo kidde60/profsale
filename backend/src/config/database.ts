@@ -17,19 +17,36 @@ const dbConfig: PoolOptions = {
   charset: 'utf8mb4',
 };
 
+const inlineCa = process.env.CA_CERT;
 const sslCertPath = process.env.CA;
 
-if (sslCertPath) {
-  try {
-    const ca = fs.readFileSync(sslCertPath, 'utf8');
-    dbConfig.ssl = {
-      ca,
-      minVersion: 'TLSv1.2',
-      rejectUnauthorized: true,
-    };
-  } catch (error) {
-    console.warn(`⚠️  Unable to load CA certificate from ${sslCertPath}. Proceeding without TLS.`);
+const resolveCertificate = (): string | undefined => {
+  if (inlineCa) {
+    return inlineCa.includes('---') ? inlineCa.replace(/\\n/g, '\n') : inlineCa;
   }
+
+  if (sslCertPath) {
+    try {
+      return fs.readFileSync(sslCertPath, 'utf8');
+    } catch (error) {
+      console.warn(`⚠️  Unable to load CA certificate from ${sslCertPath}.`);
+    }
+  }
+
+  return undefined;
+};
+
+const caCertificate = resolveCertificate();
+
+if (caCertificate) {
+  dbConfig.ssl = {
+    ca: caCertificate,
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true,
+  };
+  console.log('🔒 TLS enabled for database connections');
+} else if (process.env.NODE_ENV === 'production') {
+  console.warn('⚠️  No CA certificate configured. Set CA_CERT (PEM contents) or CA (file path).');
 }
 
 export const pool = mysql.createPool(dbConfig);
