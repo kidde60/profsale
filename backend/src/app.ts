@@ -27,6 +27,7 @@ import staffRoutes from './routes/staff.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import { performHealthCheck, simpleHealthCheck, readinessCheck, livenessCheck } from './utils/healthCheck';
 
+// password wS9dQPVF8MdMssFT
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
 const env = process.env.NODE_ENV || 'development';
