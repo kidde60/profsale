@@ -1,0 +1,2 @@
+id,phone,email,first_name,last_name,password_hash,profile_image,is_verified,is_active,last_login,created_at,updated_at
+2,0709481515,kgeorgewilliam60@gmail.com,Mukera,Reachal,$2b$10$WJGwNATpkuFtBQruYfTEjuZ4qrz4vlLEHh/YJmmC54aUb8TR07n2O,,0,1,,2026-04-26 15:52:22,2026-05-06 17:57:14
