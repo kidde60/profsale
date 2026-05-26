@@ -18,9 +18,14 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
     const businessId = req.user.businessId;
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
-    const offset = (page - 1) * limit;
+    const requestedPage = parseInt(req.query.page as string, 10);
+    const requestedLimit = parseInt(req.query.limit as string, 10);
+
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const limitCandidate = Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 20;
+    const limit = Math.min(limitCandidate, 100);
+    const offset = Math.max(page - 1, 0) * limit;
+    const limitOffsetClause = `LIMIT ${limit} OFFSET ${offset}`;
 
     // Filters
     const search = req.query.search as string;
@@ -91,8 +96,8 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       FROM customers c
       ${whereClause}
       ORDER BY c.${sortField} ${sortDirection}
-      LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset],
+      ${limitOffsetClause}`,
+      queryParams,
     );
 
     // Get summary statistics
