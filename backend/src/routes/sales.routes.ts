@@ -308,9 +308,27 @@ router.post(
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = req?.user?.businessId;
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
-    const offset = (page - 1) * limit;
+
+    const rawPage = Number(req.query.page);
+    const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+    const rawLimit = Number(req.query.limit);
+    const parsedLimit = Number.isInteger(rawLimit) && rawLimit > 0 ? rawLimit : 20;
+    const limit = Math.min(parsedLimit, 100);
+
+    const offsetCandidate = (page - 1) * limit;
+    const offset = Number.isInteger(offsetCandidate) && offsetCandidate >= 0 ? offsetCandidate : 0;
+
+    console.debug('Sales pagination params', {
+      rawPage,
+      page,
+      rawLimit,
+      limit,
+      offset,
+      query: req.query,
+    });
+
+    const paginationClause = `LIMIT ${limit} OFFSET ${offset}`;
 
     // Filters
     const startDate = req.query.start_date as string;
@@ -359,12 +377,22 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     // Get sales
     const [sales] = await pool.execute<any[]>(
       `SELECT 
-        s.id, s.sale_number, s.customer_name, s.subtotal, s.tax_amount,
-        s.discount_amount, s.total_amount, s.amount_paid, s.payment_method, s.status,
-        s.sale_date, s.created_at,
-        u.first_name as employee_first_name, u.last_name as employee_last_name,
-        c.name as customer_full_name,
-        COUNT(si.id) as item_count
+        s.id,
+        s.sale_number,
+        s.customer_name,
+        s.subtotal,
+        s.tax_amount,
+        s.discount_amount,
+        s.total_amount,
+        s.amount_paid,
+        s.payment_method,
+        s.status,
+        s.sale_date,
+        s.created_at,
+        ANY_VALUE(u.first_name) AS employee_first_name,
+        ANY_VALUE(u.last_name) AS employee_last_name,
+        ANY_VALUE(c.name) AS customer_full_name,
+        COUNT(si.id) AS item_count
       FROM sales s
       LEFT JOIN users u ON s.employee_id = u.id
       LEFT JOIN customers c ON s.customer_id = c.id
@@ -372,8 +400,8 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       ${whereClause}
       GROUP BY s.id
       ORDER BY s.sale_date DESC
-      LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset],
+      ${paginationClause}`,
+      queryParams,
     );
 
     // Get summary statistics
