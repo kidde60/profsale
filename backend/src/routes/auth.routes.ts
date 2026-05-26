@@ -164,9 +164,13 @@ router.post('/register', async (req: Request, res: Response) => {
 
       // Send welcome email (non-blocking)
       if (email) {
+        console.log(`Sending welcome email to ${email}`);
         emailService
           .sendWelcomeEmail(email, firstName, businessName)
-          .catch(err => console.error('Failed to send welcome email:', err));
+          .then(() => console.log(`Welcome email sent to ${email}`))
+          .catch(err => console.error(`Failed to send welcome email to ${email}:`, err));
+      } else {
+        console.log('No email provided, skipping welcome email');
       }
 
       res.status(201).json({
