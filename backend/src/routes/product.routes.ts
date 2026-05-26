@@ -12,9 +12,28 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = req.user?.businessId;
     const fetchAll = req.query.all === 'true';
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = fetchAll ? 10000 : Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
-    const offset = fetchAll ? 0 : (page - 1) * limit;
+
+    const rawPage = Number(req.query.page);
+    const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+
+    const rawLimit = Number(req.query.limit);
+    const parsedLimit = Number.isInteger(rawLimit) && rawLimit > 0 ? rawLimit : 20;
+    const limit = fetchAll ? 10000 : Math.min(parsedLimit, 100);
+
+    const offsetCandidate = fetchAll ? 0 : (page - 1) * limit;
+    const offset = Number.isInteger(offsetCandidate) && offsetCandidate >= 0 ? offsetCandidate : 0;
+
+    console.debug('Products pagination params', {
+      fetchAll,
+      rawPage,
+      page,
+      rawLimit,
+      limit,
+      offset,
+      query: req.query,
+    });
+
+    const paginationClause = `LIMIT ${limit} OFFSET ${offset}`;
 
     // Filters
     const search = req.query.search as string;
@@ -80,8 +99,8 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       LEFT JOIN categories c ON p.category_id = c.id
       ${whereClause}
       ORDER BY p.name ASC
-      LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset],
+      ${paginationClause}`,
+      queryParams,
     );
 
     // Get summary statistics
@@ -314,18 +333,39 @@ router.post(
         }
       }
 
+      // Check if name already exists (case-insensitive)
+      const [existingByName] = await pool.execute<any[]>(
+        'SELECT id FROM products WHERE business_id = ? AND LOWER(name) = LOWER(?) AND is_active = TRUE',
+        [businessId, name],
+      );
+
+      if (existingByName.length > 0) {
+        res.status(409).json({
+          success: false,
+          message: 'Product with this name already exists',
+        });
+        return;
+      }
+
       // Start transaction
       const connection = await pool.getConnection();
       await connection.beginTransaction();
 
       try {
+        const [latestProduct] = await connection.execute<any[]>(
+          'SELECT id FROM products ORDER BY id DESC LIMIT 1 FOR UPDATE',
+        );
+
+        const nextProductId = (latestProduct[0]?.id ?? 0) + 1;
+
         // Insert product
         const [productResult] = await connection.execute<any>(
           `INSERT INTO products 
-        (business_id, category_id, name, description, barcode, buying_price, 
-         selling_price, current_stock, min_stock_level, unit, created_by) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, business_id, category_id, name, description, barcode, buying_price, 
+         selling_price, current_stock, min_stock_level, unit, created_by, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
           [
+            nextProductId,
             businessId,
             normalizedCategoryId || null,
             name,
@@ -340,7 +380,7 @@ router.post(
           ],
         );
 
-        const productId = productResult.insertId;
+        const productId = productResult.insertId || nextProductId;
 
         // TODO: Create initial inventory movement if stock > 0 (when inventory_movements table is created)
         // if (normalizedCurrentStock && normalizedCurrentStock > 0) {
