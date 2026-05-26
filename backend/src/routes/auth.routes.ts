@@ -89,10 +89,15 @@ router.post('/register', async (req: Request, res: Response) => {
     const userPhone = phone;
 
     // Check if user already exists
-    const [existingUsers] = await pool.execute<any[]>(
-      'SELECT id FROM users WHERE phone = ? OR email = ?',
-      [userPhone, email],
-    );
+    let checkQuery = 'SELECT id FROM users WHERE phone = ?';
+    let checkParams: any[] = [userPhone];
+    
+    if (email) {
+      checkQuery += ' OR email = ?';
+      checkParams.push(email);
+    }
+    
+    const [existingUsers] = await pool.execute<any[]>(checkQuery, checkParams);
 
     if (existingUsers.length > 0) {
       sendErrorResponse(res, 409, 'User with this phone number or email already exists');
