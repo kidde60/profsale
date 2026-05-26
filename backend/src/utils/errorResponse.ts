@@ -6,17 +6,24 @@ import { Response } from 'express';
  * @param statusCode - HTTP status code
  * @param message - User-friendly error message
  * @param error - Optional error details (only shown in development)
+ * @param data - Optional additional error data (always shown)
  */
 export const sendErrorResponse = (
   res: Response,
   statusCode: number,
   message: string,
   error?: string | Error,
+  data?: any,
 ): void => {
   const response: any = {
     success: false,
     message,
   };
+
+  // Include additional error data if provided
+  if (data) {
+    response.data = data;
+  }
 
   // Only include error details in development
   if (process.env.NODE_ENV === 'development' && error) {

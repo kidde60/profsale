@@ -85,13 +85,13 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
-    // Normalize phone number
-    const normalizedPhone = phone;
+    // Accept phone as-is (no normalization)
+    const userPhone = phone;
 
     // Check if user already exists
     const [existingUsers] = await pool.execute<any[]>(
       'SELECT id FROM users WHERE phone = ? OR email = ?',
-      [normalizedPhone, email],
+      [userPhone, email],
     );
 
     if (existingUsers.length > 0) {
@@ -110,7 +110,7 @@ router.post('/register', async (req: Request, res: Response) => {
       // Create user
       const [userResult] = await connection.execute<any>(
         'INSERT INTO users (phone, email, first_name, last_name, password_hash, is_verified, is_active) VALUES (?, ?, ?, ?, ?, FALSE, TRUE)',
-        [normalizedPhone, email, firstName, lastName, passwordHash],
+        [userPhone, email, firstName, lastName, passwordHash],
       );
 
       const userId = userResult.insertId;
@@ -170,7 +170,7 @@ router.post('/register', async (req: Request, res: Response) => {
         data: {
           user: {
             id: userId,
-            phone: normalizedPhone,
+            phone: userPhone,
             email,
             firstName,
             lastName,
@@ -182,17 +182,22 @@ router.post('/register', async (req: Request, res: Response) => {
       });
     } catch (error) {
       await connection.rollback();
+      console.error('Transaction error during registration:', error);
       throw error;
     } finally {
       connection.release();
     }
   } catch (error) {
     console.error('Registration error:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     if ((error as any)?.code === 'ER_DUP_ENTRY') {
       sendErrorResponse(res, 409, 'User with this phone number or email already exists');
       return;
     }
-    sendErrorResponse(res, 500, 'Registration failed', getErrorMessage(error));
+    sendErrorResponse(res, 500, 'Registration failed', getErrorMessage(error), {
+      errorCode: (error as any)?.code,
+      errorMessage: (error as any)?.message,
+    });
   }
 });
 
