@@ -86,7 +86,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Normalize phone number
-    const normalizedPhone = normalizePhoneNumber(phone);
+    const normalizedPhone = phone;
 
     // Check if user already exists
     const [existingUsers] = await pool.execute<any[]>(
@@ -188,6 +188,10 @@ router.post('/register', async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('Registration error:', error);
+    if ((error as any)?.code === 'ER_DUP_ENTRY') {
+      sendErrorResponse(res, 409, 'User with this phone number or email already exists');
+      return;
+    }
     sendErrorResponse(res, 500, 'Registration failed', getErrorMessage(error));
   }
 });
@@ -225,12 +229,13 @@ router.post('/login', async (req: Request, res: Response) => {
          JOIN businesses b ON s.business_id = b.id
          LEFT JOIN staff_permissions sp ON s.id = sp.staff_id AND sp.is_granted = TRUE
          WHERE (s.email = ? OR s.phone = ?) AND s.is_active = TRUE
-         GROUP BY s.id`,
+         GROUP BY s.id, s.email, s.phone, s.name, s.password_hash, s.is_active,
+                  s.business_id, s.role, b.business_name, b.is_active`,
         [login, login],
       );
 
       if (staff.length === 0) {
-        sendErrorResponse(res, 401, 'Invalid credentials');
+        sendErrorResponse(res, 404, 'Account not found');
         return;
       }
 
@@ -239,7 +244,7 @@ router.post('/login', async (req: Request, res: Response) => {
       // Verify password
       const passwordValid = await bcrypt.compare(password, staffMember.password_hash);
       if (!passwordValid) {
-        sendErrorResponse(res, 401, 'Invalid credentials');
+        sendErrorResponse(res, 401, 'Incorrect password');
         return;
       }
 
@@ -299,7 +304,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // Verify password
     const passwordValid = await bcrypt.compare(password, user.password_hash);
     if (!passwordValid) {
-      sendErrorResponse(res, 401, 'Invalid credentials');
+      sendErrorResponse(res, 401, 'Incorrect password');
       return;
     }
 
