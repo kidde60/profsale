@@ -240,16 +240,19 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const requestGalleryPermission = async () => {
     if (Platform.OS === 'android') {
       try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-          {
-            title: 'Gallery Permission',
-            message: 'App needs access to your gallery to pick images',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
+        // Android 13+ requires READ_MEDIA_IMAGES, older versions use READ_EXTERNAL_STORAGE
+        const permission =
+          Platform.Version >= 33
+            ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+            : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+
+        const granted = await PermissionsAndroid.request(permission, {
+          title: 'Gallery Permission',
+          message: 'App needs access to your gallery to pick images',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        });
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
         console.warn(err);
