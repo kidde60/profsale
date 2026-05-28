@@ -3,6 +3,10 @@
     <!-- Internet access -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Gallery/Image permissions -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
     <application
         android:name=".MainApplication"
         android:label="@string/app_name"
