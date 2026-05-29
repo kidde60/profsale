@@ -10,8 +10,9 @@ export function setGlobalLogoutHandler(handler: () => void) {
   globalLogoutHandler = handler;
 }
 
-const API_URL = 'http://localhost:8080/api'
-// 'https://profsale.onrender.com/api'
+const API_URL = 'https://profsale.onrender.com/api'
+
+// 'http://localhost:8080/api'
 // 'https://profsale.dangotechconcepts.com/api'
 
 // __DEV__
