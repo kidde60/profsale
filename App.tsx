@@ -10,7 +10,7 @@ import { StatusBar, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { Toast } from './src/components';
+import { Toast, OfflineIndicator } from './src/components';
 import { setToastHandler } from './src/utils/errorHandler';
 import { COLORS } from './src/constants/theme';
 import type { ToastType } from './src/components/Toast';
@@ -39,6 +39,7 @@ function App() {
       />
       <AuthProvider>
         <View style={{ flex: 1 }}>
+          <OfflineIndicator />
           <AppNavigator />
           {showToast && (
             <Toast
