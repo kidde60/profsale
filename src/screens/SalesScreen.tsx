@@ -9,10 +9,12 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Card, Loading } from '../components';
 import { salesService } from '../services/salesService';
+import { networkService } from '../services/networkService';
 import { Sale } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { handleError } from '../utils/errorHandler';
@@ -90,6 +92,18 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
         setPage(1);
         setHasMore(true);
       }
+
+      // If offline, load from cache
+      if (!networkService.isNetworkAvailable()) {
+        const cachedSales = await AsyncStorage.getItem('cached_sales');
+        if (cachedSales) {
+          const parsedSales = JSON.parse(cachedSales);
+          setSales(parsedSales);
+          setHasMore(false);
+        }
+        return;
+      }
+
       const response = await salesService.getSales({
         page: reset ? 1 : page,
         limit: 50,
@@ -99,6 +113,8 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
 
       if (reset) {
         setSales(salesData);
+        // Cache the sales
+        await AsyncStorage.setItem('cached_sales', JSON.stringify(salesData));
       } else {
         setSales(prev => [...prev, ...salesData]);
       }
@@ -107,6 +123,17 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
       );
     } catch (error) {
       handleError(error, 'Failed to load sales');
+      // Try to load from cache if API fails
+      try {
+        const cachedSales = await AsyncStorage.getItem('cached_sales');
+        if (cachedSales) {
+          const parsedSales = JSON.parse(cachedSales);
+          setSales(parsedSales);
+          setHasMore(false);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

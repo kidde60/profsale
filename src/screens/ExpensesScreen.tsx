@@ -12,12 +12,14 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Card, Loading } from '../components';
 import expenseService, { Expense } from '../services/expenseService';
+import { networkService } from '../services/networkService';
 import { formatCurrency } from '../utils/helpers';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -93,13 +95,38 @@ const ExpensesScreen: React.FC<Props> = ({ navigation }) => {
 
   const fetchExpenses = async () => {
     try {
+      // If offline, load from cache
+      if (!networkService.isNetworkAvailable()) {
+        const cachedExpenses = await AsyncStorage.getItem('cached_expenses');
+        if (cachedExpenses) {
+          const parsedExpenses = JSON.parse(cachedExpenses);
+          setExpenses(parsedExpenses);
+        }
+        return;
+      }
+
       const response = await expenseService.getExpenses();
       const expensesData = Array.isArray(response.data)
         ? response.data
         : response?.data?.expenses || [];
       setExpenses(expensesData);
-    } catch {
-      Alert.alert('Error', 'Failed to load expenses');
+      // Cache the expenses
+      await AsyncStorage.setItem(
+        'cached_expenses',
+        JSON.stringify(expensesData),
+      );
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      // Try to load from cache if API fails
+      try {
+        const cachedExpenses = await AsyncStorage.getItem('cached_expenses');
+        if (cachedExpenses) {
+          const parsedExpenses = JSON.parse(cachedExpenses);
+          setExpenses(parsedExpenses);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
