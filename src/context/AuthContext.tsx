@@ -67,8 +67,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           );
           // Don't fail login if subscription fetch fails
         }
-        // Initialize sync service
+        // Initialize sync service and start auto-sync
         await syncService.initialize();
+        syncService.startAutoSync(60000); // Auto-sync every 60 seconds
       }
     } catch (error) {
       throw error;
@@ -87,6 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const logout = async () => {
     try {
+      syncService.stopAutoSync();
       await authService.logout();
       setUser(null);
     } catch (error) {

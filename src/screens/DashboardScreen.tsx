@@ -7,12 +7,14 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Card, Loading } from '../components';
 import { dashboardService } from '../services/dashboardService';
+import { networkService } from '../services/networkService';
 import subscriptionService, {
   Subscription,
 } from '../services/subscriptionService';
@@ -56,11 +58,32 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 
   const fetchDashboardData = async () => {
     try {
-      const data = await dashboardService.getOverview();
+      // If offline, load from cache
+      if (!networkService.isNetworkAvailable()) {
+        const cachedStats = await AsyncStorage.getItem('cached_dashboard');
+        if (cachedStats) {
+          const parsedStats = JSON.parse(cachedStats);
+          setStats(parsedStats);
+        }
+        return;
+      }
 
+      const data = await dashboardService.getOverview();
       setStats(data);
+      // Cache the dashboard stats
+      await AsyncStorage.setItem('cached_dashboard', JSON.stringify(data));
     } catch (error) {
       console.error('Error fetching dashboard:', error);
+      // Try to load from cache if API fails
+      try {
+        const cachedStats = await AsyncStorage.getItem('cached_dashboard');
+        if (cachedStats) {
+          const parsedStats = JSON.parse(cachedStats);
+          setStats(parsedStats);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
