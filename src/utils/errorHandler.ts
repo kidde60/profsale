@@ -19,6 +19,12 @@ export const showToast = (message: string, type: ToastType = 'info') => {
 export const handleError = (error: any, defaultMessage: string = 'An error occurred') => {
   console.error('Error:', error);
 
+  // Don't show error toast for offline GET requests - cache will be used
+  if (error?.isOffline && error?.isGetRequest) {
+    console.log('Offline GET request - using cache silently');
+    return;
+  }
+
   let message = defaultMessage;
 
   if (error?.response?.data?.message) {

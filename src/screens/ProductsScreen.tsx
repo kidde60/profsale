@@ -15,6 +15,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, Loading, Input, Button } from '../components';
 import { productService } from '../services/productService';
+import { localStorageService } from '../services/localStorageService';
+import { networkService } from '../services/networkService';
 import { Product } from '../types';
 import { formatCurrency, formatStock } from '../utils/helpers';
 import { canAccessFeature } from '../utils/permissions';
@@ -49,6 +51,14 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
+      // If offline, load from local storage
+      if (!networkService.isNetworkAvailable()) {
+        const localProducts = await localStorageService.getProducts();
+        setAllProducts(localProducts as any);
+        setProducts(localProducts as any);
+        return;
+      }
+
       // Try to load from cache first
       const cachedProducts = await AsyncStorage.getItem('cached_products');
       if (cachedProducts) {
@@ -65,27 +75,36 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
       setAllProducts(productsData);
       setProducts(productsData);
 
-      // Cache the products
+      // Cache the products in both AsyncStorage and localStorageService
       await AsyncStorage.setItem(
         'cached_products',
         JSON.stringify(productsData),
       );
+      await localStorageService.cacheProducts(productsData);
     } catch (error: any) {
       console.error('Error fetching products:', error);
       handleError(error, 'Failed to load products');
-      // Try to load from cache if API fails
+      // Try to load from local storage if API fails
       try {
-        const cachedProducts = await AsyncStorage.getItem('cached_products');
-        if (cachedProducts) {
-          const parsedProducts = JSON.parse(cachedProducts);
-          setAllProducts(parsedProducts);
-          setProducts(parsedProducts);
+        const localProducts = await localStorageService.getProducts();
+        if (localProducts.length > 0) {
+          setAllProducts(localProducts as any);
+          setProducts(localProducts as any);
+        } else {
+          // Fallback to AsyncStorage cache
+          const cachedProducts = await AsyncStorage.getItem('cached_products');
+          if (cachedProducts) {
+            const parsedProducts = JSON.parse(cachedProducts);
+            setAllProducts(parsedProducts);
+            setProducts(parsedProducts);
+          }
         }
       } catch (cacheError) {
         console.error('Failed to load from cache:', cacheError);
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 

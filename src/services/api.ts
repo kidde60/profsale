@@ -68,6 +68,11 @@ apiClient.interceptors.response.use(
           );
           return Promise.reject({ isOffline: true });
         }
+        
+        // For GET requests when offline, don't show error alert
+        // Screens will handle loading from cache
+        console.log('Offline - GET request, will use cache');
+        return Promise.reject({ isOffline: true, isGetRequest: true });
       }
       
       console.log('Network error:', error.message);
