@@ -10,9 +10,11 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, Loading } from '../components';
 import { customerService } from '../services/customerService';
+import { networkService } from '../services/networkService';
 import { Customer } from '../types';
 import { Picker } from '@react-native-picker/picker';
 import { formatCurrency } from '../utils/helpers';
@@ -71,13 +73,38 @@ const CustomersScreen: React.FC<Props> = ({ navigation }) => {
 
   const fetchCustomers = async () => {
     try {
+      // If offline, load from cache
+      if (!networkService.isNetworkAvailable()) {
+        const cachedCustomers = await AsyncStorage.getItem('cached_customers');
+        if (cachedCustomers) {
+          const parsedCustomers = JSON.parse(cachedCustomers);
+          setCustomers(parsedCustomers);
+        }
+        return;
+      }
+
       const response = await customerService.getCustomers();
       const customersData = Array.isArray(response.data)
         ? response.data
         : (response as any)?.data?.customers || [];
       setCustomers(customersData);
+      // Cache the customers
+      await AsyncStorage.setItem(
+        'cached_customers',
+        JSON.stringify(customersData),
+      );
     } catch (error) {
       console.error('Error fetching customers:', error);
+      // Try to load from cache if API fails
+      try {
+        const cachedCustomers = await AsyncStorage.getItem('cached_customers');
+        if (cachedCustomers) {
+          const parsedCustomers = JSON.parse(cachedCustomers);
+          setCustomers(parsedCustomers);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
