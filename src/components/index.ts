@@ -4,3 +4,4 @@ export { Card } from './Card';
 export { Loading } from './Loading';
 export { default as Toast } from './Toast';
 export { OfflineIndicator } from './OfflineIndicator';
+export { ImageUpload } from './ImageUpload';

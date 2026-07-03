@@ -7,8 +7,6 @@ import {
   Alert,
   Image,
   TouchableOpacity,
-  Platform,
-  PermissionsAndroid,
   Modal,
   TextInput,
 } from 'react-native';
@@ -27,10 +25,6 @@ import {
 } from '../utils/errorHandler';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import {
-  ImagePickerResponse,
-  launchImageLibrary,
-} from 'react-native-image-picker';
 
 type ProductDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -237,71 +231,26 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const requestGalleryPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        // Android 13+ requires READ_MEDIA_IMAGES, older versions use READ_EXTERNAL_STORAGE
-        const permission =
-          Platform.Version >= 33
-            ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-            : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
-
-        const granted = await PermissionsAndroid.request(permission, {
-          title: 'Gallery Permission',
-          message: 'App needs access to your gallery to pick images',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        });
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
   const handleImagePicker = async () => {
-    const hasPermission = await requestGalleryPermission();
-    if (!hasPermission) {
-      handleWarning('Please grant gallery permission to select images');
-      return;
-    }
-
-    try {
-      const options = {
-        mediaType: 'photo' as const,
-        quality: 0.8 as any,
-        maxWidth: 800,
-        maxHeight: 800,
-      };
-
-      launchImageLibrary(options, (response: ImagePickerResponse) => {
-        if (response.didCancel) {
-          console.log('User cancelled image picker');
-          return;
-        }
-
-        if (response.errorCode) {
-          handleError(null, 'Failed to pick image');
-          return;
-        }
-
-        if (response.assets && response.assets[0]) {
-          const asset = response.assets[0];
-          if (asset.uri) {
-            updateField('productImage', asset.uri);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Image picker error:', error);
-      handleError(
-        null,
-        'Image picker is not available. Please rebuild the app.',
-      );
-    }
+    Alert.alert(
+      'Add Product Image',
+      'Image upload feature requires a backend service. For now, you can update product details and upload images later.',
+      [
+        {
+          text: 'Continue',
+          onPress: () => {
+            console.log('Continuing without image');
+          },
+        },
+        {
+          text: 'Cancel',
+          onPress: () => {
+            console.log('Image picker cancelled');
+          },
+          style: 'cancel',
+        },
+      ],
+    );
   };
 
   const removeImage = () => {

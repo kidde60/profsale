@@ -4,6 +4,7 @@ import { pool } from '../config/database';
 import { authenticateToken } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
 import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
+import { uploadToCloudinary } from '../utils/cloudinary';
 
 const router = Router();
 
@@ -546,18 +547,39 @@ router.put(
             }
             break;
           case 'productImage':
-            updates.push('product_image = ?');
-            values.push(value);
+            // Handle image upload to Cloudinary
+            if (value && value.startsWith('data:')) {
+              // Will be handled after validation
+            } else if (value) {
+              // URL or existing image
+              updates.push('product_image = ?');
+              values.push(value);
+            }
             break;
         }
       });
 
-      if (updates.length === 0) {
+      if (updates.length === 0 && !req.body.productImage) {
         res.status(400).json({
           success: false,
           message: 'No valid fields to update',
         });
         return;
+      }
+
+      // Handle image upload if base64 image provided
+      if (req.body.productImage && req.body.productImage.startsWith('data:')) {
+        try {
+          console.log('Uploading product image to Cloudinary...');
+          const imageUrl = await uploadToCloudinary(req.body.productImage);
+          updates.push('product_image = ?');
+          values.push(imageUrl);
+          console.log('Image uploaded successfully:', imageUrl);
+        } catch (uploadError: any) {
+          console.error('Image upload failed:', uploadError.message);
+          // Continue with product update even if image upload fails
+          console.log('Continuing with product update without image');
+        }
       }
 
       // Update product
