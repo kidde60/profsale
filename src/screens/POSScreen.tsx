@@ -108,8 +108,11 @@ const POSScreen: React.FC = () => {
         'cached_products',
         JSON.stringify(productsData),
       );
-    } catch (error) {
-      handleError(error, 'Failed to load products');
+    } catch (error: any) {
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        handleError(error, 'Failed to load products');
+      }
       // Try to load from cache if API fails
       try {
         const cachedProducts = await AsyncStorage.getItem('cached_products');

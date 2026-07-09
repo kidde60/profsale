@@ -72,8 +72,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
       setStats(data);
       // Cache the dashboard stats
       await AsyncStorage.setItem('cached_dashboard', JSON.stringify(data));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard:', error);
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        // Only show error if not offline
+        console.log('Dashboard fetch error (not suppressed)');
+      }
       // Try to load from cache if API fails
       try {
         const cachedStats = await AsyncStorage.getItem('cached_dashboard');

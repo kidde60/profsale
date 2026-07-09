@@ -83,7 +83,10 @@ const ProductsScreen: React.FC<Props> = ({ navigation }) => {
       await localStorageService.cacheProducts(productsData);
     } catch (error: any) {
       console.error('Error fetching products:', error);
-      handleError(error, 'Failed to load products');
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        handleError(error, 'Failed to load products');
+      }
       // Try to load from local storage if API fails
       try {
         const localProducts = await localStorageService.getProducts();

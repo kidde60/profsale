@@ -115,8 +115,12 @@ const ExpensesScreen: React.FC<Props> = ({ navigation }) => {
         'cached_expenses',
         JSON.stringify(expensesData),
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching expenses:', error);
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        console.log('Expenses fetch error (not suppressed)');
+      }
       // Try to load from cache if API fails
       try {
         const cachedExpenses = await AsyncStorage.getItem('cached_expenses');

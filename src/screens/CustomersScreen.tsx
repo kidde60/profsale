@@ -93,8 +93,12 @@ const CustomersScreen: React.FC<Props> = ({ navigation }) => {
         'cached_customers',
         JSON.stringify(customersData),
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching customers:', error);
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        console.log('Customers fetch error (not suppressed)');
+      }
       // Try to load from cache if API fails
       try {
         const cachedCustomers = await AsyncStorage.getItem('cached_customers');

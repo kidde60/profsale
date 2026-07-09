@@ -121,8 +121,11 @@ const SalesScreen: React.FC<Props> = ({ navigation }) => {
       setHasMore(
         salesData.length >= 50 && sales.length + salesData.length < total,
       );
-    } catch (error) {
-      handleError(error, 'Failed to load sales');
+    } catch (error: any) {
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        handleError(error, 'Failed to load sales');
+      }
       // Try to load from cache if API fails
       try {
         const cachedSales = await AsyncStorage.getItem('cached_sales');
