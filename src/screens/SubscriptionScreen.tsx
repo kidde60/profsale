@@ -5,13 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Opacity,
   Alert,
   TextInput,
   Modal,
   FlatList,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Loading } from '../components';
@@ -67,9 +67,35 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
       setCurrentSubscription(subscription);
       setPlans(plansData);
       setHistory(historyData);
-    } catch (error) {
+      // Cache subscription data
+      await AsyncStorage.setItem(
+        'cached_subscription',
+        JSON.stringify(subscription),
+      );
+      await AsyncStorage.setItem('cached_plans', JSON.stringify(plansData));
+      await AsyncStorage.setItem(
+        'cached_subscription_history',
+        JSON.stringify(historyData),
+      );
+    } catch (error: any) {
       console.error('Error fetching subscription data:', error);
-      Alert.alert('Error', 'Failed to load subscription data');
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        console.log('Subscription fetch error (not suppressed)');
+      }
+      // Try to load from cache if API fails
+      try {
+        const cachedSub = await AsyncStorage.getItem('cached_subscription');
+        const cachedPlans = await AsyncStorage.getItem('cached_plans');
+        const cachedHistory = await AsyncStorage.getItem(
+          'cached_subscription_history',
+        );
+        if (cachedSub) setCurrentSubscription(JSON.parse(cachedSub));
+        if (cachedPlans) setPlans(JSON.parse(cachedPlans));
+        if (cachedHistory) setHistory(JSON.parse(cachedHistory));
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

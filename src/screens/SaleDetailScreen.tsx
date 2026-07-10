@@ -8,9 +8,11 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RouteProp } from '@react-navigation/native';
 import { Card, Loading, Button } from '../components';
 import { salesService } from '../services/salesService';
+import { networkService } from '../services/networkService';
 import { Sale } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { handleError, handleSuccess } from '../utils/errorHandler';
@@ -42,11 +44,41 @@ const SaleDetailScreen: React.FC<Props> = ({ route }) => {
 
   const fetchSaleDetails = async () => {
     try {
+      // If offline, try to load from cache
+      if (!networkService.isNetworkAvailable()) {
+        const cachedSales = await AsyncStorage.getItem('cached_sales');
+        if (cachedSales) {
+          const sales = JSON.parse(cachedSales);
+          const sale = sales.find((s: Sale) => s.id === saleId);
+          if (sale) {
+            setSale(sale);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       const data = await salesService.getSale(saleId);
       console.log('Sale data received:', data);
       setSale(data);
-    } catch (error) {
-      handleError(error, 'Failed to load sale details');
+    } catch (error: any) {
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        handleError(error, 'Failed to load sale details');
+      }
+      // Try to load from cache if API fails
+      try {
+        const cachedSales = await AsyncStorage.getItem('cached_sales');
+        if (cachedSales) {
+          const sales = JSON.parse(cachedSales);
+          const sale = sales.find((s: Sale) => s.id === saleId);
+          if (sale) {
+            setSale(sale);
+          }
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
     }
