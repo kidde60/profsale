@@ -10,11 +10,13 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { Card, Button, Input, Loading } from '../components';
+import { Card, Button, Input, Loading, ImageUpload } from '../components';
 import { productService } from '../services/productService';
+import { networkService } from '../services/networkService';
 import { Product } from '../types';
 import { formatCurrency, formatStock } from '../utils/helpers';
 import {
@@ -74,6 +76,42 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const fetchProduct = useCallback(async () => {
     try {
+      // If offline, try to load from cache
+      if (!networkService.isNetworkAvailable()) {
+        const cachedProducts = await AsyncStorage.getItem('cached_products');
+        if (cachedProducts) {
+          const products = JSON.parse(cachedProducts);
+          const product = products.find((p: Product) => p.id === productId);
+          if (product) {
+            setProduct(product);
+            setFormData({
+              name: product.name || '',
+              description: product.description || '',
+              barcode: product.barcode || '',
+              buyingPrice: String(
+                product.buying_price || product.cost_price || '',
+              ),
+              sellingPrice: String(product.selling_price || ''),
+              currentStock: String(
+                String(
+                  product.current_stock ?? product.quantity_in_stock ?? '',
+                ),
+              ),
+              minStockLevel: String(
+                product.min_stock_level ?? product.reorder_level ?? '',
+              ),
+              unit: product.unit || product.unit_of_measure || '',
+              categoryId: product.category_id
+                ? String(product.category_id)
+                : '',
+              productImage: product.product_image || '',
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       const data = await productService.getProduct(productId);
       console.log('Fetched product data:', data);
       setProduct(data);
@@ -93,8 +131,46 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         categoryId: data.category_id ? String(data.category_id) : '',
         productImage: data.product_image || '',
       });
-    } catch {
-      handleError(null, 'Failed to load product');
+    } catch (error: any) {
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        handleError(error, 'Failed to load product');
+      }
+      // Try to load from cache if API fails
+      try {
+        const cachedProducts = await AsyncStorage.getItem('cached_products');
+        if (cachedProducts) {
+          const products = JSON.parse(cachedProducts);
+          const product = products.find((p: Product) => p.id === productId);
+          if (product) {
+            setProduct(product);
+            setFormData({
+              name: product.name || '',
+              description: product.description || '',
+              barcode: product.barcode || '',
+              buyingPrice: String(
+                product.buying_price || product.cost_price || '',
+              ),
+              sellingPrice: String(product.selling_price || ''),
+              currentStock: String(
+                String(
+                  product.current_stock ?? product.quantity_in_stock ?? '',
+                ),
+              ),
+              minStockLevel: String(
+                product.min_stock_level ?? product.reorder_level ?? '',
+              ),
+              unit: product.unit || product.unit_of_measure || '',
+              categoryId: product.category_id
+                ? String(product.category_id)
+                : '',
+              productImage: product.product_image || '',
+            });
+          }
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
     }
@@ -231,30 +307,8 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleImagePicker = async () => {
-    Alert.alert(
-      'Add Product Image',
-      'Image upload feature requires a backend service. For now, you can update product details and upload images later.',
-      [
-        {
-          text: 'Continue',
-          onPress: () => {
-            console.log('Continuing without image');
-          },
-        },
-        {
-          text: 'Cancel',
-          onPress: () => {
-            console.log('Image picker cancelled');
-          },
-          style: 'cancel',
-        },
-      ],
-    );
-  };
-
-  const removeImage = () => {
-    updateField('productImage', '');
+  const handleImageSelected = (base64: string) => {
+    updateField('productImage', base64);
   };
 
   const profitMargin =
@@ -448,29 +502,11 @@ const ProductDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text style={styles.sectionTitle}>Edit Product</Text>
 
               <Text style={styles.imageLabel}>Product Image</Text>
-              {formData.productImage ? (
-                <View style={styles.imagePreviewContainer}>
-                  <Image
-                    source={{ uri: formData.productImage }}
-                    style={styles.imagePreview}
-                  />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={removeImage}
-                  >
-                    <Text style={styles.removeImageText}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.imageUploadButton}
-                  onPress={handleImagePicker}
-                >
-                  <Text style={styles.imageUploadText}>
-                    + Add Product Image
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <ImageUpload
+                onImageSelected={handleImageSelected}
+                currentImage={formData.productImage}
+                maxSizeMB={5}
+              />
 
               <Input
                 label="Product Name"
