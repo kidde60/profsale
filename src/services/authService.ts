@@ -27,12 +27,17 @@ export const authService = {
         );
       }
       // Cache credentials for offline login
+      // Store password hash using simple encoding (backend validates real password)
+      const passwordHash = Buffer.from(credentials.password).toString('base64');
+      
       await AsyncStorage.setItem(
         'offlineCredentials',
         JSON.stringify({
           email: response.data.data.user.email,
+          passwordHash: passwordHash,
           token: response.data.data.token,
           user: response.data.data.user,
+          timestamp: Date.now(),
         }),
       );
     }
@@ -60,7 +65,7 @@ export const authService = {
 
     const offlineCreds = JSON.parse(offlineCredsJson);
 
-    // Validate email
+    // Validate email/login
     if (offlineCreds.email !== credentials.login) {
       return {
         success: false,
@@ -68,6 +73,30 @@ export const authService = {
         token: '',
         user: undefined,
       };
+    }
+
+    // Validate password if provided
+    if (credentials.password && offlineCreds.passwordHash) {
+      try {
+        // Compare password with stored hash (base64 encoded)
+        const providedHash = Buffer.from(credentials.password).toString('base64');
+        if (providedHash !== offlineCreds.passwordHash) {
+          return {
+            success: false,
+            message: 'Invalid credentials',
+            token: '',
+            user: undefined,
+          };
+        }
+      } catch (error) {
+        console.error('Error validating password:', error);
+        return {
+          success: false,
+          message: 'Authentication failed',
+          token: '',
+          user: undefined,
+        };
+      }
     }
 
     // Restore auth state

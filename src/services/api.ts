@@ -51,22 +51,28 @@ apiClient.interceptors.response.use(
       if (!networkService.isNetworkAvailable()) {
         console.log('Offline - queuing request');
         
+        // Check if this is a login request
+        const isLoginRequest = error.config?.url?.includes('/auth/login');
+        
         // Only queue write operations (POST, PUT, DELETE, PATCH)
         if (error.config?.method && ['post', 'put', 'delete', 'patch'].includes(error.config.method)) {
-          await networkService.addToQueue({
-            id: Date.now().toString(),
-            url: error.config.url || '',
-            method: error.config.method.toUpperCase() as any,
-            body: error.config.data,
-            headers: error.config.headers as Record<string, string>,
-            timestamp: Date.now(),
-          });
-          
-          Alert.alert(
-            'Offline Mode',
-            'Request saved. Will sync when you are back online.',
-          );
-          return Promise.reject({ isOffline: true });
+          // For login requests, don't show alert - offline login will be attempted
+          if (!isLoginRequest) {
+            await networkService.addToQueue({
+              id: Date.now().toString(),
+              url: error.config.url || '',
+              method: error.config.method.toUpperCase() as any,
+              body: error.config.data,
+              headers: error.config.headers as Record<string, string>,
+              timestamp: Date.now(),
+            });
+            
+            Alert.alert(
+              'Offline Mode',
+              'Request saved. Will sync when you are back online.',
+            );
+          }
+          return Promise.reject({ isOffline: true, isLoginRequest });
         }
         
         // For GET requests when offline, don't show error alert
