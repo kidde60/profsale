@@ -8,10 +8,12 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Card, Loading, Button } from '../components';
 import staffService, { StaffMember } from '../services/staffService';
+import { networkService } from '../services/networkService';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -42,10 +44,35 @@ const StaffScreen: React.FC<Props> = ({ navigation }) => {
 
   const fetchStaff = async () => {
     try {
+      // If offline, load from cache
+      if (!networkService.isNetworkAvailable()) {
+        const cachedStaff = await AsyncStorage.getItem('cached_staff');
+        if (cachedStaff) {
+          const parsedStaff = JSON.parse(cachedStaff);
+          setStaff(parsedStaff);
+        }
+        return;
+      }
+
       const data = await staffService.getStaff();
       setStaff(data);
-    } catch {
-      Alert.alert('Error', 'Failed to load staff members');
+      // Cache the staff
+      await AsyncStorage.setItem('cached_staff', JSON.stringify(data));
+    } catch (error: any) {
+      // Don't show error alert for offline GET requests - cache will be used
+      if (!(error?.isOffline && error?.isGetRequest)) {
+        console.log('Staff fetch error (not suppressed)');
+      }
+      // Try to load from cache if API fails
+      try {
+        const cachedStaff = await AsyncStorage.getItem('cached_staff');
+        if (cachedStaff) {
+          const parsedStaff = JSON.parse(cachedStaff);
+          setStaff(parsedStaff);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

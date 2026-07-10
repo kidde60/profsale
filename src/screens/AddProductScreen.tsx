@@ -1,16 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  Image,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Input, Button, Card } from '../components';
+import { Input, Button, Card, ImageUpload } from '../components';
 import { productService } from '../services/productService';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -72,30 +64,8 @@ const AddProductScreen: React.FC<Props> = ({ navigation }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleImagePicker = async () => {
-    Alert.alert(
-      'Add Product Image',
-      'Image upload feature requires a backend service. For now, you can add product details and upload images later.',
-      [
-        {
-          text: 'Continue Without Image',
-          onPress: () => {
-            console.log('Continuing without image');
-          },
-        },
-        {
-          text: 'Cancel',
-          onPress: () => {
-            console.log('Image picker cancelled');
-          },
-          style: 'cancel',
-        },
-      ],
-    );
-  };
-
-  const removeImage = () => {
-    setFormData(prev => ({ ...prev, productImage: undefined }));
+  const handleImageSelected = (base64: string) => {
+    setFormData(prev => ({ ...prev, productImage: base64 }));
   };
 
   const validateForm = (): boolean => {
@@ -222,27 +192,11 @@ const AddProductScreen: React.FC<Props> = ({ navigation }) => {
           />
 
           <Text style={styles.imageLabel}>Product Image (Optional)</Text>
-          {formData.productImage ? (
-            <View style={styles.imagePreviewContainer}>
-              <Image
-                source={{ uri: formData.productImage }}
-                style={styles.imagePreview}
-              />
-              <TouchableOpacity
-                style={styles.removeImageButton}
-                onPress={removeImage}
-              >
-                <Text style={styles.removeImageText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.imageUploadButton}
-              onPress={handleImagePicker}
-            >
-              <Text style={styles.imageUploadText}>+ Add Product Image</Text>
-            </TouchableOpacity>
-          )}
+          <ImageUpload
+            onImageSelected={handleImageSelected}
+            currentImage={formData.productImage}
+            maxSizeMB={5}
+          />
         </Card>
 
         <Card style={styles.card}>
@@ -355,46 +309,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: SPACING.sm,
     marginTop: SPACING.md,
-  },
-  imagePreviewContainer: {
-    marginTop: SPACING.sm,
-    position: 'relative',
-  },
-  imagePreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    resizeMode: 'cover',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 8,
-  },
-  removeImageText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: '600',
-  },
-  imageUploadButton: {
-    marginTop: SPACING.sm,
-    borderWidth: 2,
-    borderColor: COLORS.border || '#E0E0E0',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    padding: SPACING.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.background,
-  },
-  imageUploadText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.primary,
-    fontWeight: '600',
   },
   profitMargin: {
     flexDirection: 'row',
