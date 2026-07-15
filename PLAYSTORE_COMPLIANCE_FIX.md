@@ -1,20 +1,23 @@
 # Google Play Store Compliance Fix ✅
 
 ## Problem
+
 Google Play Store rejected the app with the following issue:
 
 ```
 Issue found: Permission use is not directly related to your app's core purpose.
-We found that your app is not compliant with how the READ_MEDIA_IMAGES/READ_MEDIA_VIDEO 
+We found that your app is not compliant with how the READ_MEDIA_IMAGES/READ_MEDIA_VIDEO
 permissions are allowed to be used.
 
-Your app only requires one-time or infrequent access to media files on the device. 
-Only apps with a core use case that require persistent access to photo and video files 
+Your app only requires one-time or infrequent access to media files on the device.
+Only apps with a core use case that require persistent access to photo and video files
 located in shared storage on devices are allowed to use photo and video permissions.
 ```
 
 ## Root Cause
+
 The `react-native-image-picker` library was declaring restricted permissions:
+
 - `READ_MEDIA_IMAGES`
 - `READ_MEDIA_VIDEO`
 - `READ_EXTERNAL_STORAGE`
@@ -22,9 +25,11 @@ The `react-native-image-picker` library was declaring restricted permissions:
 These permissions are restricted by Google Play and require a core use case justification. Since ProfSale only needs one-time image selection for product uploads, these permissions are not appropriate.
 
 ## Solution
+
 Use the **Android System Photo Picker** instead of requesting broad media access permissions.
 
 ### Why System Photo Picker?
+
 ✅ **No Permissions Required** - System picker doesn't need READ_MEDIA_IMAGES
 ✅ **Play Store Compliant** - Approved for one-time/infrequent media access
 ✅ **User Friendly** - Native Android/iOS interface
@@ -34,6 +39,7 @@ Use the **Android System Photo Picker** instead of requesting broad media access
 ## Implementation
 
 ### 1. AndroidManifest.xml
+
 **File**: `android/app/src/main/AndroidManifest.xml`
 
 ```xml
@@ -56,18 +62,23 @@ Use the **Android System Photo Picker** instead of requesting broad media access
 ```
 
 **Key Points**:
+
 - Added `xmlns:tools` namespace for manifest merge tools
 - Used `tools:node="remove"` to explicitly remove restricted permissions
 - This overrides any permissions declared by dependencies
 
 ### 2. Image Picker Implementation
+
 **File**: `src/utils/imageUtils.ts`
 
 ```typescript
-import { launchImageLibrary, ImageLibraryOptions } from 'react-native-image-picker';
+import {
+  launchImageLibrary,
+  ImageLibraryOptions,
+} from 'react-native-image-picker';
 
 export async function pickImage(): Promise<string | null> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const options: ImageLibraryOptions = {
       mediaType: 'photo',
       maxWidth: 1024,
@@ -75,7 +86,7 @@ export async function pickImage(): Promise<string | null> {
       includeBase64: true,
     };
 
-    launchImageLibrary(options, (response) => {
+    launchImageLibrary(options, response => {
       if (response.didCancel) {
         resolve(null);
         return;
@@ -104,12 +115,14 @@ export async function pickImage(): Promise<string | null> {
 ```
 
 **How It Works**:
+
 - `launchImageLibrary()` opens system photo picker
 - No permissions requested - user grants access via system dialog
 - Returns base64 encoded image
 - Works on Android 13+ (system picker) and iOS
 
 ### 3. ImageUpload Component
+
 **File**: `src/components/ImageUpload.tsx`
 
 - Reusable component for image selection
@@ -119,7 +132,9 @@ export async function pickImage(): Promise<string | null> {
 - Error handling
 
 ### 4. Screen Integration
+
 **Files**:
+
 - `src/screens/AddProductScreen.tsx`
 - `src/screens/ProductDetailScreen.tsx`
 
@@ -128,6 +143,7 @@ Both screens use `ImageUpload` component for image selection.
 ## How System Photo Picker Works
 
 ### Android Flow
+
 ```
 User taps "Add Image"
     ↓
@@ -145,6 +161,7 @@ No persistent permissions needed
 ```
 
 ### Permissions
+
 - **No permissions declared** in app manifest
 - **System handles access** via photo picker
 - **User controls** which images to share
@@ -153,21 +170,25 @@ No persistent permissions needed
 ## Play Store Compliance Checklist
 
 ✅ **No Restricted Permissions**
+
 - ✅ No READ_MEDIA_IMAGES
 - ✅ No READ_MEDIA_VIDEO
 - ✅ No READ_EXTERNAL_STORAGE
 
 ✅ **System Photo Picker**
+
 - ✅ Uses native Android/iOS picker
 - ✅ No custom file browser
 - ✅ No direct file access
 
 ✅ **User Control**
+
 - ✅ User explicitly chooses image
 - ✅ User can cancel anytime
 - ✅ One-time access per selection
 
 ✅ **Core Functionality**
+
 - ✅ Image upload is optional feature
 - ✅ App works without images
 - ✅ Not core to app purpose
@@ -175,6 +196,7 @@ No persistent permissions needed
 ## Testing
 
 ### Test 1: Image Upload Works
+
 ```
 1. Open AddProductScreen
 2. Tap "Add Product Image"
@@ -185,6 +207,7 @@ No persistent permissions needed
 ```
 
 ### Test 2: No Permission Requests
+
 ```
 1. Install app on Android 13+ device
 2. Open image picker
@@ -195,6 +218,7 @@ No persistent permissions needed
 ```
 
 ### Test 3: Image Upload Completes
+
 ```
 1. Add product with image
 2. Tap "Add Product"
@@ -204,6 +228,7 @@ No persistent permissions needed
 ```
 
 ### Test 4: Play Store Compliance
+
 ```
 1. Build release APK
 2. Upload to Google Play Console
@@ -215,12 +240,14 @@ No persistent permissions needed
 ## Build & Deploy
 
 ### Build Release APK
+
 ```bash
 cd android
 ./gradlew assembleRelease
 ```
 
 ### Upload to Play Store
+
 ```
 1. Go to Google Play Console
 2. Select app
@@ -231,18 +258,19 @@ cd android
 ```
 
 ### Expected Review Time
+
 - Initial review: 24-48 hours
 - Resubmission: 24-48 hours
 
 ## Files Modified
 
-| File | Changes |
-|------|---------|
-| `android/app/src/main/AndroidManifest.xml` | Remove restricted permissions |
-| `src/utils/imageUtils.ts` | System photo picker implementation |
-| `src/components/ImageUpload.tsx` | Reusable image upload component |
-| `src/screens/AddProductScreen.tsx` | Integrated ImageUpload |
-| `src/screens/ProductDetailScreen.tsx` | Integrated ImageUpload |
+| File                                       | Changes                            |
+| ------------------------------------------ | ---------------------------------- |
+| `android/app/src/main/AndroidManifest.xml` | Remove restricted permissions      |
+| `src/utils/imageUtils.ts`                  | System photo picker implementation |
+| `src/components/ImageUpload.tsx`           | Reusable image upload component    |
+| `src/screens/AddProductScreen.tsx`         | Integrated ImageUpload             |
+| `src/screens/ProductDetailScreen.tsx`      | Integrated ImageUpload             |
 
 ## Benefits
 
@@ -256,13 +284,17 @@ cd android
 ## Troubleshooting
 
 ### Issue: Permission dialog still appears
+
 **Solution**: Clear app cache, reinstall app, rebuild APK
 
 ### Issue: Image picker doesn't open
+
 **Solution**: Verify `launchImageLibrary()` is called correctly
 
 ### Issue: Play Store still shows permission warning
-**Solution**: 
+
+**Solution**:
+
 1. Rebuild APK with updated manifest
 2. Wait 24 hours for Play Store cache to clear
 3. Resubmit for review
@@ -283,5 +315,6 @@ cd android
 ---
 
 ## Version
+
 v1.0 - July 10, 2026
 Google Play Store Compliance Fix
