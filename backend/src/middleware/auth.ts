@@ -149,6 +149,33 @@ export const authenticateToken = async (
     }
 
     const user = users[0];
+
+    // Parse permissions - if user is owner or permissions are empty, grant all permissions
+    let permissions = {
+      canViewReports: false,
+      canManageInventory: false,
+      canManageEmployees: false,
+      canManageSettings: false,
+    };
+
+    if (user.permissions) {
+      try {
+        permissions = JSON.parse(user.permissions);
+      } catch (e) {
+        console.error('Failed to parse permissions:', e);
+      }
+    }
+
+    // Owners always have all permissions
+    if (user.role === 'owner') {
+      permissions = {
+        canViewReports: true,
+        canManageInventory: true,
+        canManageEmployees: true,
+        canManageSettings: true,
+      };
+    }
+
     req.user = {
       id: user.id,
       phone: user.phone,
@@ -160,14 +187,7 @@ export const authenticateToken = async (
       businessName: user.business_name,
       business_name: user.business_name,
       role: user.role,
-      permissions: user.permissions
-        ? JSON.parse(user.permissions)
-        : {
-            canViewReports: false,
-            canManageInventory: false,
-            canManageEmployees: false,
-            canManageSettings: false,
-          },
+      permissions,
     };
 
     next();

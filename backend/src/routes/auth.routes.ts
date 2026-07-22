@@ -334,6 +334,17 @@ router.post('/login', async (req: Request, res: Response) => {
     // Update last login
     await pool.execute('UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
+    // Parse permissions - owners always have all permissions
+    let permissions = user.permissions ? JSON.parse(user.permissions) : {};
+    if ((user.role || 'owner') === 'owner') {
+      permissions = {
+        canViewReports: true,
+        canManageInventory: true,
+        canManageEmployees: true,
+        canManageSettings: true,
+      };
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -347,7 +358,7 @@ router.post('/login', async (req: Request, res: Response) => {
           businessId: user.business_id,
           businessName: user.business_name,
           role: user.role || 'owner',
-          permissions: user.permissions ? JSON.parse(user.permissions) : {},
+          permissions,
           isVerified: user.is_verified,
           userType: 'user',
         },
