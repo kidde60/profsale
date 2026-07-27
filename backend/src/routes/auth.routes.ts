@@ -210,10 +210,56 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
+// DEBUG: Check user in database (remove in production)
+router.get('/debug/check-user/:login', async (req: Request, res: Response) => {
+  try {
+    const { login } = req.params;
+    console.log('DEBUG: Checking user:', login);
+
+    const [users] = await pool.execute<any[]>(
+      `SELECT u.id, u.phone, u.email, u.first_name, u.last_name, u.password_hash,
+              u.is_verified, u.is_active, b.id as business_id, b.business_name, 
+              b.is_active as business_active, bu.role, bu.permissions, bu.is_active as bu_is_active
+       FROM users u
+       LEFT JOIN business_users bu ON u.id = bu.user_id
+       LEFT JOIN businesses b ON bu.business_id = b.id
+       WHERE (u.phone = ? OR u.email = ?)`,
+      [login, login],
+    );
+
+    res.json({
+      success: true,
+      data: {
+        found: users.length > 0,
+        count: users.length,
+        users: users.map((u: { id: any; phone: any; email: any; first_name: any; last_name: any; password_hash: string; is_active: any; business_id: any; bu_is_active: any; role: any; }) => ({
+          id: u.id,
+          phone: u.phone,
+          email: u.email,
+          first_name: u.first_name,
+          last_name: u.last_name,
+          password_hash: u.password_hash ? `${u.password_hash.substring(0, 20)}...` : null,
+          is_active: u.is_active,
+          business_id: u.business_id,
+          bu_is_active: u.bu_is_active,
+          role: u.role,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
 // User Login
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { login, password } = req.body;
+
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Login input:', login);
+    console.log('Password provided:', !!password);
 
     // Validate input
     if (!login || !password) {
@@ -227,11 +273,24 @@ router.post('/login', async (req: Request, res: Response) => {
               u.is_verified, u.is_active, b.id as business_id, b.business_name, 
               b.is_active as business_active, bu.role, bu.permissions
        FROM users u
-       LEFT JOIN business_users bu ON u.id = bu.user_id
-       LEFT JOIN businesses b ON bu.business_id = b.id
-       WHERE (u.phone = ? OR u.email = ?) AND u.is_active = TRUE`,
+       INNER JOIN business_users bu ON u.id = bu.user_id
+       INNER JOIN businesses b ON bu.business_id = b.id
+       WHERE (u.phone = ? OR u.email = ?) AND u.is_active = TRUE AND bu.is_active = TRUE`,
       [login, login],
     );
+
+    console.log('User query result count:', users.length);
+    if (users.length > 0) {
+      console.log('User found:', {
+        id: users[0].id,
+        phone: users[0].phone,
+        email: users[0].email,
+        has_password_hash: !!users[0].password_hash,
+        role: users[0].role,
+        business_id: users[0].business_id,
+        is_active: users[0].is_active,
+      });
+    }
 
     // Try to find as staff member if not found as user
     if (users.length === 0) {
@@ -315,12 +374,21 @@ router.post('/login', async (req: Request, res: Response) => {
     // Handle regular user login
     const user = users[0];
 
+    console.log('Attempting password verification...');
+    console.log('Password hash exists:', !!user.password_hash);
+    console.log('Password hash length:', user.password_hash?.length || 0);
+
     // Verify password
     const passwordValid = await bcrypt.compare(password, user.password_hash);
+    console.log('Password verification result:', passwordValid);
+    
     if (!passwordValid) {
+      console.log('Password mismatch for user:', user.id);
       sendErrorResponse(res, 401, 'Incorrect password');
       return;
     }
+
+    console.log('Password verified successfully for user:', user.id);
 
     // Check if business is active
     if (user.business_id && !user.business_active) {

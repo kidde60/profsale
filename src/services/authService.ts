@@ -6,17 +6,25 @@ import { networkService } from './networkService';
 export const authService = {
   // Login
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    console.log('=== AUTH SERVICE LOGIN ===');
+    console.log('Network available:', networkService.isNetworkAvailable());
+    console.log('Credentials:', { login: credentials.login, password: '***' });
+
     // If offline, try to use cached credentials
     if (!networkService.isNetworkAvailable()) {
+      console.log('Offline - attempting offline login');
       return await this.offlineLogin(credentials);
     }
 
     // If online, perform normal login
+    console.log('Online - attempting online login');
     const response = await apiClient.post<{
       success: boolean;
       message: string;
       data: { user: any; token: string };
     }>('/auth/login', credentials);
+    
+    console.log('Login response:', { success: response.data.success, message: response.data.message });
 
     if (response.data.success && response.data.data.token) {
       await AsyncStorage.setItem('authToken', response.data.data.token);
@@ -34,6 +42,7 @@ export const authService = {
         'offlineCredentials',
         JSON.stringify({
           email: response.data.data.user.email,
+          phone: response.data.data.user.phone,
           passwordHash: passwordHash,
           token: response.data.data.token,
           user: response.data.data.user,
@@ -52,9 +61,11 @@ export const authService = {
 
   // Offline login - validate against cached credentials
   async offlineLogin(credentials: LoginCredentials): Promise<AuthResponse> {
+    console.log('=== OFFLINE LOGIN ===');
     const offlineCredsJson = await AsyncStorage.getItem('offlineCredentials');
 
     if (!offlineCredsJson) {
+      console.log('No cached credentials found');
       return {
         success: false,
         message: 'No cached credentials. Please login online first.',
@@ -64,9 +75,21 @@ export const authService = {
     }
 
     const offlineCreds = JSON.parse(offlineCredsJson);
+    console.log('Cached credentials found:', {
+      email: offlineCreds.email,
+      phone: offlineCreds.phone,
+      loginAttempt: credentials.login,
+    });
 
-    // Validate email/login
-    if (offlineCreds.email !== credentials.login) {
+    // Validate email/phone/login - check against both email and phone
+    const loginMatches = 
+      offlineCreds.email === credentials.login || 
+      offlineCreds.phone === credentials.login;
+    
+    console.log('Login matches:', loginMatches);
+    
+    if (!loginMatches) {
+      console.log('Login does not match cached credentials');
       return {
         success: false,
         message: 'Invalid credentials',
@@ -80,7 +103,11 @@ export const authService = {
       try {
         // Compare password with stored hash (base64 encoded)
         const providedHash = Buffer.from(credentials.password).toString('base64');
-        if (providedHash !== offlineCreds.passwordHash) {
+        const passwordMatches = providedHash === offlineCreds.passwordHash;
+        console.log('Password matches:', passwordMatches);
+        
+        if (!passwordMatches) {
+          console.log('Password mismatch');
           return {
             success: false,
             message: 'Invalid credentials',
