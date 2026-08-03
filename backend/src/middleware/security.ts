@@ -46,22 +46,33 @@ export const securityHeaders = helmet({
 /**
  * Enhanced CORS configuration
  */
+const defaultAllowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:8081',
+  'http://localhost:19006',
+  'http://localhost:5173',
+  'https://profsale.netlify.app',
+  'https://profsale.dangotechconcepts.com',
+];
+
+export const getAllowedOrigins = (): string[] => {
+  const configuredOrigins = process.env.ALLOWED_ORIGINS?.split(',') || defaultAllowedOrigins;
+  return configuredOrigins.map(origin => origin.trim()).filter(Boolean);
+};
+
 export const corsOptions = {
   origin: (origin: string | undefined, callback: Function) => {
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-      'http://localhost:3000',
-      'http://localhost:8081',
-      'http://localhost:19006',
-      'https://profsale.dangotechconcepts.com',
-      '*'
-    ];
+    const allowedOrigins = getAllowedOrigins();
 
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
       return callback(null, true);
     }
 
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    if (
+      allowedOrigins.includes(origin) ||
+      process.env.NODE_ENV === 'development'
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

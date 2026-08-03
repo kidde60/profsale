@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/database';
 import { emailService } from '../utils/emailService';
+import logger from '../utils/logger';
 import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
@@ -164,13 +165,42 @@ router.post('/register', async (req: Request, res: Response) => {
 
       // Send welcome email (non-blocking)
       if (email) {
-        console.log(`Sending welcome email to ${email}`);
+        logger.info('Sending welcome email', {
+          email,
+          businessName,
+          userId,
+          businessId,
+        });
         emailService
           .sendWelcomeEmail(email, firstName, businessName)
-          .then(() => console.log(`Welcome email sent to ${email}`))
-          .catch(err => console.error(`Failed to send welcome email to ${email}:`, err));
+          .then(sent => {
+            if (sent) {
+              logger.info('Welcome email sent', {
+                email,
+                userId,
+                businessId,
+              });
+            } else {
+              logger.error('Welcome email send returned false', {
+                email,
+                userId,
+                businessId,
+              });
+            }
+          })
+          .catch(err =>
+            logger.error('Failed to send welcome email', {
+              email,
+              userId,
+              businessId,
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
       } else {
-        console.log('No email provided, skipping welcome email');
+        logger.info('Skipping welcome email: no email provided', {
+          userId,
+          businessId,
+        });
       }
 
       res.status(201).json({
@@ -546,13 +576,39 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     // Send email
     if (user.email) {
+      logger.info('Sending password reset email', {
+        email: user.email,
+        userId: user.id,
+      });
       emailService
         .sendPasswordResetEmail(user.email, user.first_name, resetCode)
-        .catch(err => console.error('Failed to send password reset email:', err));
+        .then(sent => {
+          if (sent) {
+            logger.info('Password reset email sent', {
+              email: user.email,
+              userId: user.id,
+            });
+          } else {
+            logger.error('Password reset email send returned false', {
+              email: user.email,
+              userId: user.id,
+            });
+          }
+        })
+        .catch(err =>
+          logger.error('Failed to send password reset email', {
+            email: user.email,
+            userId: user.id,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
     }
 
     // Log for development
-    console.log(`Reset code for ${contact}: ${resetCode} (expires at ${expiresAt})`);
+    logger.info('Password reset code generated', {
+      contact,
+      expiresAt: expiresAt.toISOString(),
+    });
 
     res.json({
       success: true,

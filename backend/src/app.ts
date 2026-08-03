@@ -26,6 +26,7 @@ import reportsRoutes from './routes/reports.routes';
 import staffRoutes from './routes/staff.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import { performHealthCheck, simpleHealthCheck, readinessCheck, livenessCheck } from './utils/healthCheck';
+import { corsOptions } from './middleware/security';
 
 // password wS9dQPVF8MdMssFT
 const app = express();
@@ -47,16 +48,8 @@ app.use(
   }),
 );
 
-// CORS configuration - Allow all origins for production deployment
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['*'];
-
 app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'api-version'],
-  }),
+  cors(corsOptions),
 );
 
 // Compression
@@ -221,7 +214,6 @@ app.use('*', (req, res) => {
   });
 });
 
-console.log(process.env.EMAIL_USER, process.env.EMAIL_PASSWORD);
 // Basic error handler
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Error:', err);

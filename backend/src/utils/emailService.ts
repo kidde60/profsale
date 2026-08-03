@@ -13,13 +13,27 @@ class EmailService {
   private transporter: any;
 
   constructor() {
+    const emailUser = process.env.EMAIL_USER;
+    const emailPassword = process.env.EMAIL_PASSWORD;
+    const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+    const emailPort = parseInt(process.env.EMAIL_PORT || '587', 10);
+    const emailSecure = process.env.EMAIL_SECURE === 'true';
+
+    if (!emailUser || !emailPassword) {
+      logger.warn('Email service is missing SMTP credentials. Set EMAIL_USER and EMAIL_PASSWORD on Render.');
+    }
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.EMAIL_PORT || '587', 10),
-      secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+      host: emailHost,
+      port: emailPort,
+      secure: emailSecure, // true for 465, false for other ports
+      requireTLS: !emailSecure,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: emailUser,
+        pass: emailPassword,
       },
     });
 
@@ -28,6 +42,11 @@ class EmailService {
   }
 
   private async verifyConnection() {
+    if (process.env.NODE_ENV === 'production' && process.env.SKIP_EMAIL_VERIFY === 'true') {
+      logger.info('Skipping email transport verification in production');
+      return;
+    }
+
     try {
       await this.transporter.verify();
       logger.info('Email service is ready to send emails');
@@ -38,6 +57,18 @@ class EmailService {
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+        logger.error('Email not sent: SMTP credentials are missing.');
+        return false;
+      }
+
+      logger.info('Attempting to send email', {
+        to: options.to,
+        subject: options.subject,
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: process.env.EMAIL_PORT || '587',
+      });
+
       const mailOptions = {
         from: `${process.env.EMAIL_FROM_NAME || 'ProfSale'} <${process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER}>`,
         to: options.to,
