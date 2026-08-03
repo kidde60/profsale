@@ -101,11 +101,11 @@ export const generalRateLimit = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   store: createMemoryStore(),
-  skip: (req, _res) => {
+  skip: (req: any, _res: Response) => {
     // Skip rate limiting for health checks
     return req.path === '/health';
   },
-  keyGenerator: req => {
+  keyGenerator: (req: any) => {
     // Use user ID if authenticated, otherwise IP
     return (req as any).user?.id?.toString() || req.ip;
   },
@@ -120,7 +120,7 @@ export const authRateLimit = rateLimit({
   legacyHeaders: false,
   store: createMemoryStore(),
   skipSuccessfulRequests: true, // Don't count successful requests
-  keyGenerator: req => {
+  keyGenerator: (req: any) => {
     // Use login identifier + IP for more granular limiting
     const login = req.body?.login || req.body?.phone || req.body?.email;
     return `auth:${login}:${req.ip}`;
@@ -135,7 +135,7 @@ export const uploadRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createMemoryStore(),
-  keyGenerator: req => {
+  keyGenerator: (req: any) => {
     return `upload:${(req as any).user?.id || req.ip}`;
   },
 });
@@ -148,7 +148,7 @@ export const salesRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createMemoryStore(),
-  keyGenerator: req => {
+  keyGenerator: (req: any) => {
     return `sales:${(req as any).user?.id}`;
   },
 });
@@ -161,7 +161,7 @@ export const passwordResetRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createMemoryStore(),
-  keyGenerator: req => {
+  keyGenerator: (req: any) => {
     return `reset:${req.ip}`;
   },
 });
@@ -231,7 +231,7 @@ export const subscriptionBasedRateLimit = (
     max: limit.requests,
     message: rateLimitHandler,
     store: createMemoryStore(),
-    keyGenerator: _req => `subscription:${user.id}`,
+    keyGenerator: (_req: any) => `subscription:${user.id}`,
   });
 
   return dynamicRateLimit(req, res, next);

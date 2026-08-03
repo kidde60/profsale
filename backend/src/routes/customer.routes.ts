@@ -7,6 +7,9 @@ import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
+const getParamValue = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
 // Get all customers with filtering and pagination
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
@@ -146,7 +149,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
     const businessId = req.user.businessId;
-    const customerIdParam = req.params.id;
+    const customerIdParam = getParamValue(req.params.id);
 
     if (!customerIdParam) {
       res.status(400).json({
@@ -277,7 +280,7 @@ router.get(
         return;
       }
       const businessId = req.user.businessId;
-      const customerIdParam = req.params.id;
+      const customerIdParam = getParamValue(req.params.id);
 
       if (!customerIdParam) {
         res.status(400).json({
@@ -454,7 +457,7 @@ router.put(
         return;
       }
       const businessId = req.user.businessId;
-      const customerIdParam = req.params.id;
+      const customerIdParam = getParamValue(req.params.id);
 
       if (!customerIdParam) {
         res.status(400).json({
@@ -585,7 +588,7 @@ router.delete(
         return;
       }
       const businessId = req.user.businessId;
-      const customerIdParam = req.params.id;
+      const customerIdParam = getParamValue(req.params.id);
 
       if (!customerIdParam) {
         res.status(400).json({
@@ -722,7 +725,7 @@ router.get(
         return;
       }
       const businessId = req.user.businessId;
-      const customerIdParam = req.params.id;
+      const customerIdParam = getParamValue(req.params.id);
 
       if (!customerIdParam) {
         res.status(400).json({

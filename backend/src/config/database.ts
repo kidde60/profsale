@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // connection string: mysql://3jheLzrkoeDj2Aj.root:wS9dQPVF8MdMssFT@gateway01.eu-central-1.prod.aws.tidbcloud.com:4000/prof_sale
-const dbConfig: PoolOptions = {
+const dbConfig: any = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'dangotech_profsale',
   password: process.env.DB_PASSWORD || '',

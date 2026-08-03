@@ -7,6 +7,9 @@ import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
+const getParamValue = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
 // Generate unique sale number
 const generateSaleNumber = (businessId: number): string => {
   const now = new Date();
@@ -136,7 +139,7 @@ router.post(
 
         // Check stock availability
         for (const item of items) {
-          const product = products.find(p => p.id === item.productId);
+          const product = products.find((p: any) => p.id === item.productId);
           if (product.current_stock < item.quantity) {
             res.status(400).json({
               success: false,
@@ -151,7 +154,7 @@ router.post(
         // 2. Calculate totals
         let subtotal = 0;
         const saleItems = items.map((item: any) => {
-          const product = products.find(p => p.id === item.productId);
+          const product = products.find((p: any) => p.id === item.productId);
           const totalPrice = item.quantity * item.unitPrice;
           subtotal += totalPrice;
 
@@ -442,7 +445,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = req.user?.businessId;
-    const saleIdParam = req.params.id;
+    const saleIdParam = getParamValue(req.params.id);
 
     if (!saleIdParam) {
       res.status(400).json({
@@ -452,7 +455,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
       return;
     }
 
-    const saleId = parseInt(saleIdParam, 10);
+    const saleId = parseInt(getParamValue(saleIdParam) || '', 10);
 
     if (isNaN(saleId)) {
       res.status(400).json({
@@ -608,7 +611,7 @@ router.put(
     try {
       const businessId = req.user?.businessId;
       const employeeId = req.user?.id;
-      const saleIdParam = req.params.id;
+      const saleIdParam = getParamValue(req.params.id);
       const { reason } = req.body;
 
       if (!saleIdParam) {
@@ -619,7 +622,7 @@ router.put(
         return;
       }
 
-      const saleId = parseInt(saleIdParam, 10);
+      const saleId = parseInt(getParamValue(saleIdParam) || '', 10);
 
       if (isNaN(saleId)) {
         res.status(400).json({
@@ -839,7 +842,7 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const businessId = req.user?.businessId;
-      const saleIdParam = req.params.id;
+      const saleIdParam = getParamValue(req.params.id);
 
       if (!saleIdParam) {
         res.status(400).json({
@@ -944,7 +947,7 @@ router.post(
       return;
     }
 
-    const saleId = parseInt(saleIdParam, 10);
+    const saleId = parseInt(getParamValue(saleIdParam) || '', 10);
 
     if (isNaN(saleId)) {
       res.status(400).json({
@@ -1137,7 +1140,7 @@ router.post(
     try {
       await connection.beginTransaction();
 
-      const saleIdParam = req.params.saleId;
+      const saleIdParam = getParamValue(req.params.saleId);
       const { refundReason, refundMethod = 'cash', notes } = req.body;
       const businessId = req.user?.businessId;
       const refundedBy = req.user?.id;

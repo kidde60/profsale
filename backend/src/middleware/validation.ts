@@ -11,7 +11,7 @@ export const handleValidationErrors = (
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    const formattedErrors = errors.array().map(error => ({
+    const formattedErrors = errors.array().map((error: any) => ({
       field: error.type === 'field' ? error.path : 'unknown',
       message: error.msg,
       value: error.type === 'field' ? error.value : undefined,
@@ -130,7 +130,7 @@ export const validationRules = {
     body('sellingPrice')
       .isFloat({ min: 0 })
       .withMessage('Selling price must be a positive number')
-      .custom((value, { req }) => {
+      .custom((value: string, { req }: any) => {
         if (parseFloat(value) <= parseFloat(req.body.buyingPrice)) {
           throw new Error('Selling price must be greater than buying price');
         }
@@ -303,7 +303,7 @@ export const validationRules = {
       .optional()
       .isISO8601()
       .withMessage('End date must be in ISO format')
-      .custom((value, { req }) => {
+      .custom((value: string, { req }: any) => {
         if (
           req.query?.startDate &&
           value &&

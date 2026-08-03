@@ -8,6 +8,9 @@ import { uploadToCloudinary } from '../utils/cloudinary';
 
 const router = Router();
 
+const getParamValue = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
 // Get all products with filtering and pagination
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
@@ -140,7 +143,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const businessId = req.user?.businessId;
-    const productIdParam = req.params.id;
+    const productIdParam = getParamValue(req.params.id);
 
     if (!productIdParam) {
       res.status(400).json({
@@ -444,7 +447,7 @@ router.put(
     try {
       const businessId = req.user?.businessId;
       const userId = req.user?.id;
-      const productIdParam = req.params.id;
+    const productIdParam = getParamValue(req.params.id);
 
       // Enhanced debugging
       console.log('=== UPDATE PRODUCT ENDPOINT ===');
@@ -611,7 +614,7 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
       const businessId = req.user?.businessId;
-      const productIdParam = req.params.id;
+    const productIdParam = getParamValue(req.params.id);
 
       if (!productIdParam) {
         res.status(400).json({

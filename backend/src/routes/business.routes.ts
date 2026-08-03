@@ -7,6 +7,9 @@ import { sendErrorResponse, getErrorMessage } from '../utils/errorResponse';
 
 const router = Router();
 
+const getParamValue = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
 // Simple authentication middleware
 const authenticateToken = (req: Request, res: Response, next: Function) => {
   const authHeader = req.headers.authorization;
@@ -553,7 +556,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const businessId = (req as any).user.businessId;
-      const templateIdParam = req.params.id;
+      const templateIdParam = getParamValue(req.params.id);
 
       if (!templateIdParam) {
         res.status(400).json({

@@ -3,6 +3,20 @@ import { Request, Response } from 'express';
 import logger from '../utils/logger';
 import { AuthenticatedRequest } from '../types';
 
+type MorganTokens = {
+  method?: (req: Request, res: Response) => string | null;
+  url?: (req: Request, res: Response) => string | null;
+  status?: (req: Request, res: Response) => string | null;
+  referrer?: (req: Request, res: Response) => string | null;
+  'response-time'?: (req: Request, res: Response) => string | null;
+  'response-size'?: (req: Request, res: Response) => string | null;
+  'http-version'?: (req: Request, res: Response) => string | null;
+  'user-id'?: (req: Request, res: Response) => string | null;
+  'business-id'?: (req: Request, res: Response) => string | null;
+  'real-ip'?: (req: Request, res: Response) => string | null;
+  'request-id'?: (req: Request, res: Response) => string | null;
+};
+
 // Custom token for user ID
 morgan.token('user-id', (req: AuthenticatedRequest) => {
   return req.user?.id?.toString() || 'anonymous';
@@ -67,7 +81,7 @@ const developmentFormat = [
 // ].join(' ');
 
 // Custom format for JSON logging
-const jsonFormat = (tokens: any, req: Request, res: Response) => {
+const jsonFormat = (tokens: MorganTokens, req: Request, res: Response) => {
   const logData = {
     timestamp: new Date().toISOString(),
     method: tokens.method?.(req, res),
@@ -146,7 +160,7 @@ export const requestLogger =
 
 // Security-focused request logger
 export const securityLogger = morgan(
-  (tokens, req: Request, res: Response) => {
+  (tokens: MorganTokens, req: Request, res: Response) => {
     const logData = {
       timestamp: new Date().toISOString(),
       method: tokens.method?.(req, res),
@@ -202,7 +216,7 @@ export const securityLogger = morgan(
 
 // API access logger (for analytics)
 export const apiAccessLogger = morgan(
-  (tokens, req: Request, res: Response) => {
+  (tokens: MorganTokens, req: Request, res: Response) => {
     // Only log API endpoints
     if (!req.url.startsWith('/api/')) {
       return null;
@@ -258,7 +272,7 @@ export const errorRequestLogger = morgan(jsonFormat, {
 // Custom request logger for specific routes
 export const createRouteLogger = (routeName: string) => {
   return morgan(
-    (tokens, req: Request, res: Response) => {
+    (tokens: MorganTokens, req: Request, res: Response) => {
       const logData = {
         timestamp: new Date().toISOString(),
         route: routeName,
@@ -313,7 +327,7 @@ export const slowRequestLogger = morgan(jsonFormat, {
 
 // File upload logger
 export const uploadLogger = morgan(
-  (tokens, req: Request, res: Response) => {
+  (tokens: MorganTokens, req: Request, res: Response) => {
     const logData = {
       timestamp: new Date().toISOString(),
       method: tokens.method?.(req, res),
@@ -370,7 +384,7 @@ export const logAuthenticationEvent = (
   userId?: number,
   ip?: string,
   userAgent?: string,
-  details?: any,
+  details?: Record<string, unknown>,
 ) => {
   const logLevel = success ? 'info' : 'warn';
 
@@ -390,7 +404,7 @@ export const logBusinessOperation = (
   operation: string,
   businessId: number,
   userId: number,
-  details?: any,
+  details?: Record<string, unknown>,
 ) => {
   logger.info('Business Operation', {
     timestamp: new Date().toISOString(),
@@ -404,7 +418,7 @@ export const logBusinessOperation = (
 // Structured request logger with custom fields
 export const structuredRequestLogger = (customFields: any = {}) => {
   return morgan(
-    (tokens, req: Request, res: Response) => {
+  (tokens: MorganTokens, req: Request, res: Response) => {
       const baseLogData = {
         timestamp: new Date().toISOString(),
         method: tokens.method?.(req, res),
