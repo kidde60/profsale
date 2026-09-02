@@ -1,0 +1,28 @@
+/* Shared responsive layout for Login and Register pages */
+
+.auth-page-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 2rem;
+  min-height: calc(100vh - 5rem);
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 72rem; /* max-w-6xl */
+}
+
+.auth-promo {
+  display: none;
+  flex-direction: column;
+}
+
+/* Desktop: show the promo column as a second column */
+@media (min-width: 1024px) {
+  .auth-page-container {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .auth-promo {
+    display: flex;
+  }
+}

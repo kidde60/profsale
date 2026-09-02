@@ -14,10 +14,21 @@ interface User {
   };
 }
 
+interface RegisterData {
+  phone: string;
+  firstName: string;
+  lastName: string;
+  businessName: string;
+  businessType: string;
+  password: string;
+  email?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
 }
 
@@ -55,13 +66,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(response.data.data.user);
   };
 
+  const register = async (data: RegisterData) => {
+    await apiClient.post('/auth/register', data);
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

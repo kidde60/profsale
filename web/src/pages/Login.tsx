@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../utils/format';
+import '../styles/AuthPages.css';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -28,9 +29,9 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_45%,_#111827)] px-4 py-10">
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl items-center gap-8 lg:grid-cols-2">
+      <div className="auth-page-container">
         {/* Left Panel - Features */}
-        <div className="hidden space-y-8 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-8 text-white backdrop-blur-xl lg:block">
+        <div className="auth-promo space-y-8 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-8 text-white backdrop-blur-xl">
           <div>
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/30">
               <span className="text-lg font-black">P</span>
@@ -138,6 +139,17 @@ const Login: React.FC = () => {
               )}
             </button>
           </form>
+
+          {/* Sign Up Link */}
+          <div className="mt-6 text-center text-sm text-slate-600">
+            Don't have an account?{' '}
+            <Link
+              to="/register"
+              className="font-semibold text-amber-600 transition hover:text-amber-700 hover:underline"
+            >
+              Sign Up
+            </Link>
+          </div>
 
           {/* Legal Links */}
           <div className="mt-8 border-t border-slate-200 pt-6 text-center text-xs text-slate-600">
