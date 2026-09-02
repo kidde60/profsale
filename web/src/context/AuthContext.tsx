@@ -52,7 +52,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchUser = async () => {
     try {
       const response = await apiClient.get('/auth/me');
-      setUser(response.data.data);
+      const user = response.data.data?.user;
+      if (user) {
+        setUser({
+          ...user,
+          businessId: user.business?.id ?? user.businessId,
+        });
+      } else {
+        setUser(null);
+      }
     } catch (error) {
       localStorage.removeItem('token');
     } finally {

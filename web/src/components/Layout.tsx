@@ -15,6 +15,12 @@ const Layout: React.FC = () => {
     { to: '/products', label: 'Products' },
     { to: '/sales', label: 'Sales' },
     { to: '/customers', label: 'Customers' },
+    ...(user?.role === 'owner' || user?.permissions?.canViewReports
+      ? [{ to: '/reports', label: 'Reports' }]
+      : []),
+    ...(user?.role === 'owner' || user?.permissions?.canManageEmployees
+      ? [{ to: '/staff', label: 'Staff' }]
+      : []),
   ];
 
   return (

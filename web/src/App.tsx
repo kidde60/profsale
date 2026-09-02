@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Sales from './pages/Sales';
 import Products from './pages/Products';
+import Reports from './pages/Reports';
+import Staff from './pages/Staff';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 
@@ -47,6 +49,8 @@ function App() {
               <Route path="products" element={<Products />} />
               <Route path="sales" element={<Sales />} />
               <Route path="customers" element={<Customers />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="staff" element={<Staff />} />
             </Route>
           </Routes>
         </BrowserRouter>
