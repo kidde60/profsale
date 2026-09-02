@@ -4,76 +4,92 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
 const Layout: React.FC = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const location = useLocation();
   const { getCartCount } = useCart();
 
   const isActive = (path: string) => location.pathname === path;
 
+  const navItems = [
+    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/products', label: 'Products' },
+    { to: '/sales', label: 'Sales' },
+    { to: '/customers', label: 'Customers' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-blue-600 text-white p-4 shadow-md">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold">ProfSale</h1>
-          <div className="flex space-x-4 items-center">
-            <Link
-              to="/dashboard"
-              className={`px-3 py-2 rounded ${
-                isActive('/dashboard') ? 'bg-blue-700' : 'hover:bg-blue-500'
-              }`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/products"
-              className={`px-3 py-2 rounded ${
-                isActive('/products') ? 'bg-blue-700' : 'hover:bg-blue-500'
-              }`}
-            >
-              Products
-            </Link>
-            <Link
-              to="/sales"
-              className={`px-3 py-2 rounded ${
-                isActive('/sales') ? 'bg-blue-700' : 'hover:bg-blue-500'
-              }`}
-            >
-              Sales
-            </Link>
-            <Link
-              to="/customers"
-              className={`px-3 py-2 rounded ${
-                isActive('/customers') ? 'bg-blue-700' : 'hover:bg-blue-500'
-              }`}
-            >
-              Customers
-            </Link>
+    <div className="app-shell">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/30">
+              <span className="text-lg font-black">P</span>
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight text-white">
+                ProfSale
+              </h1>
+              <p className="text-xs text-slate-400">
+                {user?.email || 'Business workspace'}
+              </p>
+            </div>
+          </div>
+
+          <nav className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1 lg:flex">
+            {navItems.map(item => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  isActive(item.to)
+                    ? 'bg-white text-slate-950 shadow'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
             <Link
               to="/sales"
-              className="relative px-3 py-2 rounded hover:bg-blue-500"
+              className="relative rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  d="M3 1a1 1 0 0 1-1h1a1 1 0 0 1 1v3a1 1 0 0 1-1h-3a1 1 0 0 1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              Cart
               {getCartCount() > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-slate-950">
                   {getCartCount()}
                 </span>
               )}
             </Link>
             <button
               onClick={logout}
-              className="px-3 py-2 rounded bg-red-500 hover:bg-red-600"
+              className="rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-400"
             >
               Logout
             </button>
           </div>
         </div>
-      </nav>
-      <main className="max-w-7xl mx-auto p-6">
+
+        <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pb-3 sm:px-6 lg:hidden lg:px-8">
+          {navItems.map(item => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+                isActive(item.to)
+                  ? 'bg-white text-slate-950'
+                  : 'bg-white/5 text-slate-300'
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <Outlet />
       </main>
     </div>
