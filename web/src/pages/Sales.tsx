@@ -130,8 +130,11 @@ const Sales: React.FC = () => {
 
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 text-4xl">🛒</div>
+          <p className="text-lg text-slate-600">Loading POS...</p>
+        </div>
       </div>
     );
 
@@ -197,8 +200,12 @@ const Sales: React.FC = () => {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Point of Sale</h1>
-            <p className="mt-1 text-sm text-slate-500">Fast checkout view tuned for mobile and desktop.</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+              Point of Sale
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Fast checkout view tuned for mobile and desktop.
+            </p>
           </div>
           <button
             onClick={() => setShowSalesHistory(true)}
@@ -212,93 +219,120 @@ const Sales: React.FC = () => {
           {/* Products Section */}
           <div className="lg:col-span-2">
             <div className="mb-6 rounded-3xl border border-white/10 bg-white p-5 shadow-lg shadow-slate-900/5 sm:p-6">
-              <h2 className="mb-4 text-xl font-semibold text-slate-950">Products</h2>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-slate-950">
+                  📦 Products
+                </h2>
+                <span className="text-sm text-slate-500">
+                  {filteredProducts.length} available
+                </span>
+              </div>
               <input
                 type="text"
-                placeholder="Search products or scan barcode..."
+                placeholder="🔍 Search products or scan barcode..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="mb-4 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500"
+                className="mb-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20"
               />
+
+              {/* Empty State */}
+              {filteredProducts.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                  <p className="text-4xl mb-2">📭</p>
+                  <p className="text-sm text-slate-600">No products found</p>
+                </div>
+              )}
 
               {/* Mobile Product Cards */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:hidden">
                 {filteredProducts.map(product => (
                   <div
                     key={product.id}
-                    className="cursor-pointer rounded-3xl border border-slate-100 p-4 transition hover:bg-slate-50"
+                    className="group cursor-pointer rounded-3xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 p-4 transition hover:border-amber-200 hover:shadow-lg"
                     onClick={() => addToCart(product)}
                   >
-                    <h3 className="font-medium text-slate-950">
+                    <h3 className="font-semibold text-slate-950">
                       {product.name}
                     </h3>
-                    <p className="text-sm text-slate-500">{product.category}</p>
-                    <p className="text-lg font-semibold text-emerald-600">
-                      {formatCurrency(product.selling_price)}
-                    </p>
-                    <p
-                      className={`text-sm ${
-                        product.current_stock > 0
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      }`}
-                    >
-                      Stock: {product.current_stock}
-                    </p>
+                    <p className="text-xs text-slate-500">{product.category}</p>
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="text-lg font-bold text-amber-600">
+                        {formatCurrency(product.selling_price)}
+                      </p>
+                      <span
+                        className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                          product.current_stock > 0
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-rose-100 text-rose-700'
+                        }`}
+                      >
+                        {product.current_stock > 0
+                          ? `✓ ${product.current_stock}`
+                          : '❌ Out'}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
 
               {/* Desktop Product Table */}
-              <div className="hidden lg:block">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 lg:block">
                 <table className="min-w-full">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-500">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Product
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-500">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Category
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Price
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-500">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Stock
                       </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-500">
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Action
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredProducts.map(product => (
-                      <tr key={product.id} className="hover:bg-slate-50/70">
-                        <td className="px-4 py-3">
-                          <div>
-                            <div className="font-medium text-slate-950">
-                              {product.name}
-                            </div>
-                            <div className="text-sm text-slate-500">
-                              {product.category}
-                            </div>
+                      <tr
+                        key={product.id}
+                        className="transition hover:bg-amber-50/50"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-semibold text-slate-950">
+                            {product.name}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {formatCurrency(product.selling_price)}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                          {product.category || '-'}
                         </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-1 text-xs rounded-full ${
-                              product.current_stock > 0
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {product.current_stock}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-bold text-amber-600">
+                            {formatCurrency(product.selling_price)}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full ${
+                              product.current_stock > 0
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-rose-100 text-rose-700'
+                            }`}
+                          >
+                            {product.current_stock > 0
+                              ? `✓ ${product.current_stock}`
+                              : '❌ Out'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <button
                             onClick={() => addToCart(product)}
-                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                            className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:from-amber-600 hover:to-amber-700"
                           >
                             Add to Cart
                           </button>
@@ -314,7 +348,9 @@ const Sales: React.FC = () => {
           {/* Cart Section */}
           <div className="lg:col-span-1">
             <div className="mb-6 rounded-3xl border border-white/10 bg-white p-5 shadow-lg shadow-slate-900/5 sm:p-6">
-              <h2 className="mb-4 text-xl font-semibold text-slate-950">Cart</h2>
+              <h2 className="mb-4 text-xl font-semibold text-slate-950">
+                Cart
+              </h2>
 
               {/* Customer Selection */}
               <div className="mb-4">
@@ -353,7 +389,9 @@ const Sales: React.FC = () => {
                       className="flex items-center justify-between border-b border-slate-100 py-3"
                     >
                       <div className="flex-1">
-                        <div className="font-medium text-slate-950">{item.product.name}</div>
+                        <div className="font-medium text-slate-950">
+                          {item.product.name}
+                        </div>
                         <div className="text-sm text-slate-500">
                           {formatCurrency(item.unitPrice)}
                         </div>
@@ -393,7 +431,9 @@ const Sales: React.FC = () => {
                 <div className="mb-2 flex justify-between">
                   <span>Subtotal:</span>
                   <span>
-                    {formatCurrency(cart.reduce((sum, item) => sum + item.subtotal, 0))}
+                    {formatCurrency(
+                      cart.reduce((sum, item) => sum + item.subtotal, 0),
+                    )}
                   </span>
                 </div>
                 <div className="mb-2 flex justify-between">
@@ -428,18 +468,20 @@ const Sales: React.FC = () => {
         {showCheckout && (
           <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-slate-950/60 px-4 py-8">
             <div className="relative mx-auto w-full max-w-lg rounded-3xl border border-white/10 bg-white p-6 shadow-2xl shadow-slate-950/20">
-              <h3 className="mb-4 text-lg font-bold text-slate-950">Checkout</h3>
+              <h3 className="mb-4 text-lg font-bold text-slate-950">
+                Checkout
+              </h3>
 
               <div className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-slate-700">
-                      Payment Method
-                    </label>
-                    <select
+                  <label className="block text-sm font-medium text-slate-700">
+                    Payment Method
+                  </label>
+                  <select
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
-                      className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-3"
-                    >
+                    className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-3"
+                  >
                     <option value="cash">Cash</option>
                     <option value="mobile_money">Mobile Money</option>
                     <option value="card">Card</option>
@@ -449,30 +491,36 @@ const Sales: React.FC = () => {
 
                 {paymentMethod !== 'credit' && (
                   <div>
-                      <label className="block text-sm font-medium text-slate-700">
-                        Amount Tendered
-                      </label>
-                      <input
+                    <label className="block text-sm font-medium text-slate-700">
+                      Amount Tendered
+                    </label>
+                    <input
                       type="number"
                       value={amountTendered}
                       onChange={e => setAmountTendered(e.target.value)}
-                        className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-3"
-                      />
-                    </div>
-                  )}
+                      className="mt-1 block w-full rounded-2xl border border-slate-200 px-4 py-3"
+                    />
+                  </div>
+                )}
 
                 {paymentMethod !== 'credit' &&
                   parseFloat(amountTendered) > 0 && (
                     <div className="flex justify-between">
                       <span className="font-medium">Change:</span>
-                      <span className="font-bold">{formatCurrency(calculateChange())}</span>
+                      <span className="font-bold">
+                        {formatCurrency(calculateChange())}
+                      </span>
                     </div>
                   )}
 
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <div className="mb-2 flex justify-between">
                     <span>Subtotal:</span>
-                    <span>{formatCurrency(cart.reduce((sum, item) => sum + item.subtotal, 0))}</span>
+                    <span>
+                      {formatCurrency(
+                        cart.reduce((sum, item) => sum + item.subtotal, 0),
+                      )}
+                    </span>
                   </div>
                   <div className="mb-2 flex justify-between">
                     <span>Discount:</span>
