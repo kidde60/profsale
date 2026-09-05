@@ -94,19 +94,22 @@ const Sales: React.FC = () => {
 
     try {
       const saleData = {
-        customerId: selectedCustomer?.id,
+        customer_id: selectedCustomer?.id || null,
+        customerName: selectedCustomer?.name || null,
+        customerPhone: selectedCustomer?.phone || null,
         items: cart.map(item => ({
           productId: item.product.id,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          subtotal: item.subtotal,
         })),
         paymentMethod,
         discountAmount: parseFloat(discountAmount) || 0,
+        taxRate: 0,
+        notes: null,
         amountPaid:
           paymentMethod === 'credit'
-            ? undefined
-            : parseFloat(amountTendered) || undefined,
+            ? 0
+            : parseFloat(amountTendered) || calculateTotal(),
         total: calculateTotal(),
       };
 
