@@ -10,9 +10,6 @@ interface Product {
   current_stock: number;
   buying_price?: number;
   min_stock_level?: number;
-  category_id?: number;
-  category_name?: string;
-  category?: string;
   barcode?: string;
   description?: string;
   cost_price?: number;
@@ -33,7 +30,6 @@ const Products: React.FC = () => {
     name: '',
     selling_price: '',
     current_stock: '',
-    category: '',
     barcode: '',
     description: '',
     cost_price: '',
@@ -42,12 +38,11 @@ const Products: React.FC = () => {
     productImage: undefined as string | undefined,
   });
 
-  const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     fetchProducts();
-    fetchCategories();
   }, []);
 
   const fetchProducts = async () => {
@@ -58,15 +53,6 @@ const Products: React.FC = () => {
       console.error('Failed to fetch products', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const result = await productService.getCategories();
-      setCategories(result);
-    } catch (error) {
-      console.error('Failed to fetch categories', error);
     }
   };
 
@@ -97,6 +83,7 @@ const Products: React.FC = () => {
 
   const handleAddProduct = async () => {
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       await productService.createProduct(formData);
       setShowAddModal(false);
@@ -104,7 +91,6 @@ const Products: React.FC = () => {
         name: '',
         selling_price: '',
         current_stock: '',
-        category: '',
         barcode: '',
         description: '',
         cost_price: '',
@@ -113,8 +99,9 @@ const Products: React.FC = () => {
         productImage: undefined,
       });
       fetchProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add product', error);
+      setSubmitError(error.response?.data?.message || 'Failed to add product');
     } finally {
       setIsSubmitting(false);
     }
@@ -126,11 +113,6 @@ const Products: React.FC = () => {
       name: product.name,
       selling_price: product.selling_price.toString(),
       current_stock: product.current_stock.toString(),
-      category:
-        product.category_id?.toString() ||
-        product.category_name ||
-        product.category ||
-        '',
       barcode: product.barcode || '',
       description: product.description || '',
       cost_price:
@@ -154,11 +136,13 @@ const Products: React.FC = () => {
       setFormData(prev => ({ ...prev, productImage: reader.result as string }));
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleUpdateProduct = async () => {
     if (!editingProduct) return;
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       await productService.updateProduct(editingProduct.id, formData);
       setEditingProduct(null);
@@ -166,7 +150,6 @@ const Products: React.FC = () => {
         name: '',
         selling_price: '',
         current_stock: '',
-        category: '',
         barcode: '',
         description: '',
         cost_price: '',
@@ -175,8 +158,11 @@ const Products: React.FC = () => {
         productImage: undefined,
       });
       fetchProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update product', error);
+      setSubmitError(
+        error.response?.data?.message || 'Failed to update product',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -311,64 +297,69 @@ const Products: React.FC = () => {
           filteredProducts.map(product => (
             <div
               key={product.id}
-              className="group rounded-3xl border border-white/10 bg-white p-6 shadow-lg shadow-slate-900/5 transition hover:shadow-xl hover:border-white/20"
+              className="group rounded-3xl border border-white/10 bg-white overflow-hidden shadow-lg shadow-slate-900/5 transition hover:shadow-xl hover:border-white/20"
             >
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-950">
-                    {product.name}
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {product.category_name ||
-                      product.category ||
-                      'Uncategorized'}
-                  </p>
-                </div>
-                <span
-                  className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
-                    product.current_stock === 0
-                      ? 'bg-rose-100 text-rose-700'
+              {product.product_image && (
+                <img
+                  src={product.product_image}
+                  alt={product.name}
+                  className="h-40 w-full object-cover"
+                />
+              )}
+              <div className="p-6">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-950">
+                      {product.name}
+                    </h3>
+                  </div>
+                  <span
+                    className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
+                      product.current_stock === 0
+                        ? 'bg-rose-100 text-rose-700'
+                        : product.current_stock <=
+                          (product.min_stock_level ?? 5)
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {product.current_stock === 0
+                      ? '❌ Out'
                       : product.current_stock <= (product.min_stock_level ?? 5)
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-emerald-100 text-emerald-700'
-                  }`}
-                >
-                  {product.current_stock === 0
-                    ? '❌ Out'
-                    : product.current_stock <= (product.min_stock_level ?? 5)
-                    ? '⚠️ Low'
-                    : '✓ OK'}
-                </span>
-              </div>
-
-              <div className="mb-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-600">Price</p>
-                  <p className="font-bold text-slate-950">
-                    {formatCurrency(product.selling_price)}
-                  </p>
+                      ? '⚠️ Low'
+                      : '✓ OK'}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-600">Stock</p>
-                  <p className="font-bold text-slate-950">
-                    {product.current_stock} units
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEditProduct(product)}
-                  className="flex-1 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteProduct(product.id)}
-                  className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-500"
-                >
-                  Delete
-                </button>
+                <div className="mb-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-600">Price</p>
+                    <p className="font-bold text-slate-950">
+                      {formatCurrency(product.selling_price)}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-600">Stock</p>
+                    <p className="font-bold text-slate-950">
+                      {product.current_stock} units
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditProduct(product)}
+                    className="flex-1 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteProduct(product.id)}
+                    className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-500"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -391,9 +382,6 @@ const Products: React.FC = () => {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
                 Price
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
@@ -409,9 +397,6 @@ const Products: React.FC = () => {
               <tr key={product.id} className="hover:bg-slate-50/70">
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-950">
                   {product.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-slate-600">
-                  {product.category_name || product.category}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-600">
                   {formatCurrency(product.selling_price)}
@@ -453,11 +438,11 @@ const Products: React.FC = () => {
         onClose={() => {
           setShowAddModal(false);
           setEditingProduct(null);
+          setSubmitError('');
           setFormData({
             name: '',
             selling_price: '',
             current_stock: '',
-            category: '',
             barcode: '',
             description: '',
             cost_price: '',
@@ -468,6 +453,11 @@ const Products: React.FC = () => {
         }}
         title={editingProduct ? '✏️ Edit Product' : '➕ Add New Product'}
       >
+        {submitError && (
+          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+            {submitError}
+          </div>
+        )}
         <div className="space-y-5">
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -480,25 +470,6 @@ const Products: React.FC = () => {
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20"
               placeholder="Enter product name"
             />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Category
-            </label>
-            <select
-              value={formData.category}
-              onChange={e =>
-                setFormData({ ...formData, category: e.target.value })
-              }
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20"
-            >
-              <option value="">No Category</option>
-              {categories.map((cat: any) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -635,11 +606,11 @@ const Products: React.FC = () => {
             onClick={() => {
               setShowAddModal(false);
               setEditingProduct(null);
+              setSubmitError('');
               setFormData({
                 name: '',
                 selling_price: '',
                 current_stock: '',
-                category: '',
                 barcode: '',
                 description: '',
                 cost_price: '',
