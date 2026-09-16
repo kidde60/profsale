@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Sales from './pages/Sales';
 import Products from './pages/Products';
+import Categories from './pages/Categories';
 import Reports from './pages/Reports';
 import Staff from './pages/Staff';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -47,6 +48,7 @@ function App() {
               <Route index element={<Navigate to="/dashboard" />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="products" element={<Products />} />
+              <Route path="categories" element={<Categories />} />
               <Route path="sales" element={<Sales />} />
               <Route path="customers" element={<Customers />} />
               <Route path="reports" element={<Reports />} />

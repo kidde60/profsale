@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { productService } from '../api/products';
+import { categoryService } from '../api/categories';
+import type { Category } from '../api/categories';
 import { formatCurrency } from '../utils/format';
 import Modal from '../components/Modal';
 
@@ -10,6 +12,8 @@ interface Product {
   current_stock: number;
   buying_price?: number;
   min_stock_level?: number;
+  category_id?: number;
+  category_name?: string;
   barcode?: string;
   description?: string;
   cost_price?: number;
@@ -30,6 +34,7 @@ const Products: React.FC = () => {
     name: '',
     selling_price: '',
     current_stock: '',
+    categoryId: '',
     barcode: '',
     description: '',
     cost_price: '',
@@ -38,11 +43,13 @@ const Products: React.FC = () => {
     productImage: undefined as string | undefined,
   });
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   const fetchProducts = async () => {
@@ -53,6 +60,15 @@ const Products: React.FC = () => {
       console.error('Failed to fetch products', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await categoryService.getCategories();
+      setCategories(response.data?.categories || response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch categories', error);
     }
   };
 
@@ -91,6 +107,7 @@ const Products: React.FC = () => {
         name: '',
         selling_price: '',
         current_stock: '',
+        categoryId: '',
         barcode: '',
         description: '',
         cost_price: '',
@@ -113,6 +130,7 @@ const Products: React.FC = () => {
       name: product.name,
       selling_price: product.selling_price.toString(),
       current_stock: product.current_stock.toString(),
+      categoryId: product.category_id?.toString() || '',
       barcode: product.barcode || '',
       description: product.description || '',
       cost_price:
@@ -150,6 +168,7 @@ const Products: React.FC = () => {
         name: '',
         selling_price: '',
         current_stock: '',
+        categoryId: '',
         barcode: '',
         description: '',
         cost_price: '',
@@ -312,6 +331,9 @@ const Products: React.FC = () => {
                     <h3 className="text-lg font-semibold text-slate-950">
                       {product.name}
                     </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {product.category_name || 'Uncategorized'}
+                    </p>
                   </div>
                   <span
                     className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
@@ -382,6 +404,9 @@ const Products: React.FC = () => {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                Category
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
                 Price
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
@@ -397,6 +422,9 @@ const Products: React.FC = () => {
               <tr key={product.id} className="hover:bg-slate-50/70">
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-950">
                   {product.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-slate-600">
+                  {product.category_name || 'Uncategorized'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-600">
                   {formatCurrency(product.selling_price)}
@@ -443,6 +471,7 @@ const Products: React.FC = () => {
             name: '',
             selling_price: '',
             current_stock: '',
+            categoryId: '',
             barcode: '',
             description: '',
             cost_price: '',
@@ -470,6 +499,25 @@ const Products: React.FC = () => {
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20"
               placeholder="Enter product name"
             />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Category
+            </label>
+            <select
+              value={formData.categoryId}
+              onChange={event =>
+                setFormData({ ...formData, categoryId: event.target.value })
+              }
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20"
+            >
+              <option value="">No Category</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -611,6 +659,7 @@ const Products: React.FC = () => {
                 name: '',
                 selling_price: '',
                 current_stock: '',
+                categoryId: '',
                 barcode: '',
                 description: '',
                 cost_price: '',

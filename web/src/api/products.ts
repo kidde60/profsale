@@ -52,8 +52,12 @@ const normalizeProductPayload = (data: any) => {
       : data.category_id !== undefined
         ? data.category_id
         : data.category;
-  const parsedCategory = parseNumber(categoryId);
-  if (parsedCategory !== undefined) payload.categoryId = parsedCategory;
+  if (categoryId === '') {
+    payload.categoryId = null;
+  } else {
+    const parsedCategory = parseNumber(categoryId);
+    if (parsedCategory !== undefined) payload.categoryId = parsedCategory;
+  }
 
   if (data.productImage !== undefined) payload.productImage = data.productImage;
 
@@ -84,7 +88,7 @@ export const productService = {
   },
 
   async getCategories() {
-    const response = await apiClient.get('/products/categories/list');
+    const response = await apiClient.get('/categories');
     return response.data.data?.categories || [];
   },
 

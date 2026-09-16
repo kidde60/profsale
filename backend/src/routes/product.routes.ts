@@ -90,7 +90,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     const [products] = await pool.execute<any[]>(
       `SELECT 
         p.id, p.name, p.description, p.barcode, p.buying_price, p.selling_price,
-        p.current_stock, p.min_stock_level, p.unit, p.product_image,
+        p.category_id, p.current_stock, p.min_stock_level, p.unit, p.product_image,
         p.created_at, p.updated_at,
         c.name as category_name,
         CASE 
@@ -321,6 +321,22 @@ router.post(
         return;
       }
 
+      if (normalizedCategoryId != null) {
+        const [categories] = await pool.execute<any[]>(
+          `SELECT id FROM categories
+           WHERE id = ? AND business_id = ? AND is_active = TRUE`,
+          [normalizedCategoryId, businessId],
+        );
+
+        if (categories.length === 0) {
+          res.status(400).json({
+            success: false,
+            message: 'Selected category is not available for this business',
+          });
+          return;
+        }
+      }
+
       // Check if barcode already exists
       if (barcode) {
         const [existingProducts] = await pool.execute<any[]>(
@@ -491,6 +507,22 @@ router.put(
           message: 'Product not found',
         });
         return;
+      }
+
+      if (req.body.categoryId != null) {
+        const [categories] = await pool.execute<any[]>(
+          `SELECT id FROM categories
+           WHERE id = ? AND business_id = ? AND is_active = TRUE`,
+          [req.body.categoryId, businessId],
+        );
+
+        if (categories.length === 0) {
+          res.status(400).json({
+            success: false,
+            message: 'Selected category is not available for this business',
+          });
+          return;
+        }
       }
 
       // Build update query dynamically

@@ -17,6 +17,7 @@ import logger from './utils/logger';
 import usersRoutes from './routes/user.routes';
 import authRoutes from './routes/auth.routes';
 import productsRoutes from './routes/product.routes';
+import categoriesRoutes from './routes/category.routes';
 import salesRoutes from './routes/sales.routes';
 import customersRoutes from './routes/customer.routes';
 import dashboardRoutes from './routes/dashboard.routes';
@@ -139,7 +140,10 @@ app.get('/', (req, res) => {
       'GET /api/products/:id - Get product by ID',
       'PUT /api/products/:id - Update product',
       'DELETE /api/products/:id - Delete product',
-      'GET /api/products/categories/list - Get categories',
+      'GET /api/categories - Get business categories',
+      'POST /api/categories - Create a category',
+      'PUT /api/categories/:id - Update a category',
+      'DELETE /api/categories/:id - Delete a category',
       'GET /api/products/search/barcode/:barcode - Search by barcode',
       '',
       '💰 Sales/POS:',
@@ -195,6 +199,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes); // Auth routes
 app.use('/api/users', usersRoutes); // Users routes
 app.use('/api/products', productsRoutes); // Products routes
+app.use('/api/categories', categoriesRoutes); // Category routes
 app.use('/api/sales', salesRoutes); // Sales routes
 app.use('/api/customers', customersRoutes); // Customer routes
 app.use('/api/dashboard', dashboardRoutes); // Dashboard routes

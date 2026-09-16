@@ -13,6 +13,7 @@ const Layout: React.FC = () => {
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/products', label: 'Products' },
+    { to: '/categories', label: 'Categories' },
     { to: '/sales', label: 'Sales' },
     { to: '/customers', label: 'Customers' },
     ...(user?.role === 'owner' || user?.permissions?.canViewReports

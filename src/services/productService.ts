@@ -158,10 +158,10 @@ export const productService = {
 
   // Get categories
   async getCategories(): Promise<any[]> {
-    const response = await apiClient.get<ApiResponse<any[]>>(
-      '/products/categories/list',
+    const response = await apiClient.get<ApiResponse<{ categories: any[] }>>(
+      '/categories',
     );
-    return response.data.data || [];
+    return response.data.data?.categories || [];
   },
 
   // Get low stock products
