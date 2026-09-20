@@ -45,6 +45,9 @@ const Products: React.FC = () => {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<number | null>(
+    null,
+  );
   const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
@@ -189,11 +192,14 @@ const Products: React.FC = () => {
 
   const handleDeleteProduct = async (id: number) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
+    setDeletingProductId(id);
     try {
       await productService.deleteProduct(id);
-      fetchProducts();
+      await fetchProducts();
     } catch (error) {
       console.error('Failed to delete product', error);
+    } finally {
+      setDeletingProductId(null);
     }
   };
 
@@ -377,9 +383,17 @@ const Products: React.FC = () => {
                   </button>
                   <button
                     onClick={() => handleDeleteProduct(product.id)}
-                    className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-500"
+                    disabled={deletingProductId === product.id}
+                    className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-500 disabled:opacity-60"
                   >
-                    Delete
+                    {deletingProductId === product.id ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Deleting...
+                      </span>
+                    ) : (
+                      'Delete'
+                    )}
                   </button>
                 </div>
               </div>
@@ -449,9 +463,17 @@ const Products: React.FC = () => {
                   </button>
                   <button
                     onClick={() => handleDeleteProduct(product.id)}
-                    className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white transition hover:bg-rose-500"
+                    disabled={deletingProductId === product.id}
+                    className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white transition hover:bg-rose-500 disabled:opacity-60"
                   >
-                    Delete
+                    {deletingProductId === product.id ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Deleting...
+                      </span>
+                    ) : (
+                      'Delete'
+                    )}
                   </button>
                 </td>
               </tr>
