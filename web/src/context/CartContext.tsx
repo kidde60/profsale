@@ -4,6 +4,7 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
+import { toast } from 'sonner';
 
 interface CartItem {
   product: {
@@ -52,7 +53,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const addToCart = (product: any) => {
     if (product.current_stock <= 0) {
-      alert('Product is out of stock');
+      toast.error('Product is out of stock');
       return;
     }
 
@@ -60,7 +61,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     if (existingItem) {
       if (existingItem.quantity >= product.current_stock) {
-        alert('Insufficient stock');
+        toast.error('Insufficient stock');
         return;
       }
       setCart(
@@ -107,7 +108,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         ),
       );
     } else {
-      alert('Insufficient stock');
+      toast.error('Insufficient stock');
     }
   };
 
