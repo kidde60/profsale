@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { staffService, type StaffMember } from '../api/staff';
 import { useAuth } from '../context/AuthContext';
 
@@ -57,6 +58,7 @@ const Staff: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [togglingMemberId, setTogglingMemberId] = useState<number | null>(null);
   const [formError, setFormError] = useState('');
 
   const canManage =
@@ -176,15 +178,20 @@ const Staff: React.FC = () => {
     );
     if (!confirmed) return;
 
+    setTogglingMemberId(member.id);
     try {
       if (action === 'activate') {
         await staffService.activateStaff(member.id);
       } else {
         await staffService.deleteStaff(member.id);
       }
-      fetchStaff();
+      await fetchStaff();
     } catch (err: any) {
-      alert(err.response?.data?.message || `Failed to ${action} staff member`);
+      toast.error(
+        err.response?.data?.message || `Failed to ${action} staff member`,
+      );
+    } finally {
+      setTogglingMemberId(null);
     }
   };
 
@@ -280,16 +287,32 @@ const Staff: React.FC = () => {
                   {member.is_active ? (
                     <button
                       onClick={() => toggleActive(member, 'deactivate')}
-                      className="flex-1 rounded-xl bg-rose-50 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                      disabled={togglingMemberId === member.id}
+                      className="flex-1 rounded-xl bg-rose-50 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
                     >
-                      Deactivate
+                      {togglingMemberId === member.id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          Deactivating...
+                        </span>
+                      ) : (
+                        'Deactivate'
+                      )}
                     </button>
                   ) : (
                     <button
                       onClick={() => toggleActive(member, 'activate')}
-                      className="flex-1 rounded-xl bg-emerald-50 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      disabled={togglingMemberId === member.id}
+                      className="flex-1 rounded-xl bg-emerald-50 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
                     >
-                      Activate
+                      {togglingMemberId === member.id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          Activating...
+                        </span>
+                      ) : (
+                        'Activate'
+                      )}
                     </button>
                   )}
                 </div>
@@ -430,7 +453,16 @@ const Staff: React.FC = () => {
                   disabled={submitting}
                   className="flex-1 rounded-2xl bg-amber-500 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
                 >
-                  {submitting ? 'Saving...' : editing ? 'Update' : 'Create'}
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Saving...
+                    </span>
+                  ) : editing ? (
+                    'Update'
+                  ) : (
+                    'Create'
+                  )}
                 </button>
               </div>
             </form>
