@@ -13,6 +13,9 @@ const Categories: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(
+    null,
+  );
   const [error, setError] = useState('');
 
   const fetchCategories = async () => {
@@ -88,11 +91,14 @@ const Categories: React.FC = () => {
       return;
     }
 
+    setDeletingCategoryId(category.id);
     try {
       await categoryService.deleteCategory(category.id);
       await fetchCategories();
     } catch {
       setError('Failed to delete category');
+    } finally {
+      setDeletingCategoryId(null);
     }
   };
 
@@ -209,9 +215,17 @@ const Categories: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handleDelete(category)}
-                        className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white transition hover:bg-rose-500"
+                        disabled={deletingCategoryId === category.id}
+                        className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white transition hover:bg-rose-500 disabled:opacity-60"
                       >
-                        Delete
+                        {deletingCategoryId === category.id ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            Deleting...
+                          </span>
+                        ) : (
+                          'Delete'
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -284,11 +298,16 @@ const Categories: React.FC = () => {
               disabled={isSubmitting}
               className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-2 font-semibold text-white transition hover:from-amber-600 hover:to-amber-700 disabled:opacity-50"
             >
-              {isSubmitting
-                ? 'Saving...'
-                : editingCategory
-                ? 'Update Category'
-                : 'Add Category'}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Saving...
+                </span>
+              ) : editingCategory ? (
+                'Update Category'
+              ) : (
+                'Add Category'
+              )}
             </button>
           </div>
         </div>
