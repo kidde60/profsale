@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { productService } from '../api/products';
 import { salesService } from '../api/sales';
 import { customerService } from '../api/customers';
@@ -43,6 +44,7 @@ const Sales: React.FC = () => {
   const [discountAmount, setDiscountAmount] = useState('0');
   const [showSalesHistory, setShowSalesHistory] = useState(false);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart } =
     useCart();
@@ -88,9 +90,12 @@ const Sales: React.FC = () => {
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      alert('Cart is empty');
+      toast.error('Cart is empty');
       return;
     }
+
+    if (isProcessing) return;
+    setIsProcessing(true);
 
     try {
       const saleData = {
@@ -123,11 +128,13 @@ const Sales: React.FC = () => {
       setDiscountAmount('0');
       setShowCheckout(false);
 
-      alert('Sale completed successfully!');
+      toast.success('Sale completed successfully!');
       fetchData(); // Refresh sales history
     } catch (error) {
       console.error('Failed to complete sale', error);
-      alert('Failed to complete sale');
+      toast.error('Failed to complete sale');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -545,9 +552,17 @@ const Sales: React.FC = () => {
                 </button>
                 <button
                   onClick={handleCheckout}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-500"
+                  disabled={isProcessing}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-500 disabled:opacity-60"
                 >
-                  Complete Sale
+                  {isProcessing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Processing...
+                    </span>
+                  ) : (
+                    'Complete Sale'
+                  )}
                 </button>
               </div>
             </div>
