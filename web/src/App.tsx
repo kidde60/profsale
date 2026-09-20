@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Login from './pages/Login';
@@ -32,6 +33,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <BrowserRouter>
+          <Toaster position="top-right" richColors />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
