@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import apiClient from '../api/client';
+import { clearCache } from '../lib/offlineStore';
 
 interface User {
   id: number;
@@ -80,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = () => {
     localStorage.removeItem('token');
+    void clearCache();
     setUser(null);
   };
 
