@@ -118,7 +118,7 @@ const Sales: React.FC = () => {
         total: calculateTotal(),
       };
 
-      await salesService.createSale(saleData);
+      const result = await salesService.createSale(saleData);
 
       // Clear cart and reset form
       clearCart();
@@ -128,7 +128,8 @@ const Sales: React.FC = () => {
       setDiscountAmount('0');
       setShowCheckout(false);
 
-      toast.success('Sale completed successfully!');
+      if (result?.queued) toast.info('Sale saved offline. It will sync when you reconnect.');
+      else toast.success('Sale completed successfully!');
       fetchData(); // Refresh sales history
     } catch (error) {
       console.error('Failed to complete sale', error);
